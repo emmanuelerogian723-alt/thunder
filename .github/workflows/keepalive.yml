@@ -1,0 +1,27 @@
+# Thunder hosted-MCP keep-alive: pings the Render service every 14
+# minutes (just under Render's 15-min free-tier sleep) so the public
+# MCP endpoint https://thunder-mcp.onrender.com/mcp never sleeps.
+# Public repo = free Actions minutes, zero accounts for users.
+name: keep-thunder-mcp-awake
+on:
+  schedule:
+    - cron: "*/14 * * * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake Thunder MCP
+        run: |
+          set -e
+          for i in 1 2 3; do
+            code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" --max-time 55 \
+              -X POST https://thunder-mcp.onrender.com/mcp \
+              -H "Content-Type: application/json" \
+              -H "Accept: application/json, text/event-stream" \
+              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"keepalive","version":"1.0"}}}')
+            echo "attempt $i -> HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 20
+          done
+          echo "MCP ping failed 3 times"; exit 1
