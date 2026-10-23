@@ -41,6 +41,7 @@ class Ghost:
                 kw["proxies"] = {"http": self.proxy, "https": self.proxy}
             kw["headers"] = self._browser_headers()
             self._session = AsyncSession(**kw)
+        return self._session
 
     def _browser_headers(self) -> Dict[str, str]:
         """The exact header set a real Chrome sends, in Chrome's order.
@@ -106,7 +107,6 @@ class Ghost:
                     pool.mark_bad(proxy)
                 await asyncio.sleep(1.5 * (attempt + 1))
         return last
-        return self._session
 
     async def get(self, url: str, **kw) -> Any:
         s = await self._s()

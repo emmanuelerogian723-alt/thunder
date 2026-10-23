@@ -12,12 +12,12 @@ anyone can test in seconds.
 """
 import os
 import re
+from urllib.parse import quote, unquote
 
 from fastmcp import FastMCP
 
 import thunder
 from thunder.ghost import Ghost
-from thunder.proxy import ProxyManager
 
 mcp = FastMCP("Thunder", instructions=(
     "Thunder is a human engine for AI agents. Use thunder_search to find "
@@ -37,26 +37,89 @@ def _clean_text(html: str, limit: int = 4000) -> str:
     return text[:limit]
 
 
+RESULT_A = re.compile(
+    r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', re.S)
+LITE_LINK = re.compile(
+    r'<a[^>]+href="(https?://[^"]+)"[^>]*class="result-link"')
+BING_LINK = re.compile(
+    r'<h2><a[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>', re.S)
+
+
+def _unwrap(url: str) -> str:
+    url = url.replace("&amp;", "&")
+    m = re.search(r"[?&]uddg=([^&]+)", url)
+    if m:
+        return unquote(m.group(1))
+    # bing wraps destinations as .../ck/a?...&u=a1<base64>
+    if "bing.com/ck/a" in url:
+        m = re.search(r"[?&]u=a1([A-Za-z0-9_\-]+)", url)
+        if m:
+            import base64
+            b = m.group(1)
+            b += "=" * (-len(b) % 4)
+            try:
+                return base64.urlsafe_b64decode(b).decode("utf-8", "replace")
+            except Exception:
+                pass
+    return url
+
+
+def _parse_results(text: str, limit: int):
+    out = []
+    links = RESULT_A.findall(text)
+    if not links:
+        links = LITE_LINK.findall(text)
+        links = [(u, "") for u in links]
+    if not links:
+        links = BING_LINK.findall(text)
+    for url, title in links:
+        import html as _html
+        title = _html.unescape(re.sub(r"<[^>]+>", "", title)).strip()
+        url = _unwrap(url.strip())
+        if title and url and "duckduckgo.com" not in url:
+            out.append(f"{title}\n{url}")
+    return out[:limit]
+
+
 @mcp.tool
 async def thunder_search(query: str, limit: int = 5) -> str:
     """Search the web and return top results. Uses a browser-true
-    TLS handshake so search engines don't block the request."""
+    TLS handshake; POSTs to DuckDuckGo (its official html method —
+    GET now returns a form-only shell) with lite/Bing fallbacks,
+    so datacenter IPs don't get stranded."""
+    import asyncio
     g = Ghost()
     try:
-        r = await g.get("https://html.duckduckgo.com/html/",
-                        params={"q": query}, timeout=20)
-        links = re.findall(
-            r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>',
-            r.text)[:limit]
-        if not links:
-            links = re.findall(
-                r'<a[^>]+href="(https?://[^"]+)"[^>]*>(.*?)</a>', r.text)
-            links = [l for l in links if "duckduckgo.com" not in l[0]][:limit]
-        out = []
-        for url, title in links:
-            title = re.sub(r"<[^>]+>", "", title)
-            out.append(f"{title.strip()}\n{url.strip()}")
-        return "\n\n".join(out) or f"(no results; status {r.status_code})"
+        results = []
+        # 1) DDG POST — official method for the html endpoint
+        for attempt in range(2):
+            try:
+                r = await g.post("https://html.duckduckgo.com/html/",
+                                 data={"q": query}, timeout=20)
+                if r is not None and r.status_code == 200 and \
+                        "result__a" in r.text:
+                    results = _parse_results(r.text, limit)
+                    break
+            except Exception:
+                pass
+            await asyncio.sleep(1.5 * (attempt + 1))
+        # 2) fallbacks: lite + bing via the browse() retry engine
+        if not results:
+            for ep in ("https://lite.duckduckgo.com/lite/?q=" + quote(query),
+                       "https://www.bing.com/search?q=" + quote(query)):
+                try:
+                    r = await g.browse(ep, retries=2, timeout=20)
+                except Exception:
+                    continue
+                if r is not None and getattr(r, "status_code", 0) == 200:
+                    results = _parse_results(r.text, limit)
+                    if results:
+                        break
+        if results:
+            return "\n\n".join(results)
+        return ("search failed: all engines blocked this egress IP. "
+                "Thunder's local run with a residential proxy "
+                "(THUNDER_PROXY) resolves this.")
     except Exception as e:
         return f"search failed: {e}"
     finally:
