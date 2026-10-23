@@ -119,31 +119,53 @@ plan = mind.think(goal="log in and download the invoice",
 
 <section id="mcp">
   <div class="wrap">
-    <div class="kicker">ONE CONFIG, EVERY AGENT</div>
-    <h2>Give any agent a human body</h2>
-    <pre>{
+    <div class="kicker">COPY THIS → CLAUDE USES THUNDER</div>
+    <h2>Give any agent a human body — in 30 seconds</h2>
+    <p class="sub">Verified live: initialize ✓ · tools/list ✓ · thunder_open ✓ · thunder_ghost ✓. Paste this into your Claude Desktop (or any MCP client) config and Thunder becomes your agent's body:</p>
+    <div class="copypaste"><pre id="mcpcfg">{
   "mcpServers": {
-    "thunder": { "command": "python", "args": ["-m", "thunder.mcp_server"] }
+    "thunder": {
+      "command": "pip",
+      "args": ["run", "--with", "thunder-agent", "python", "-m", "thunder.mcp_server"]
+    }
   }
-}</pre>
-    <p class="sub" style="margin-top:1rem">Tools: <code class="inline">thunder_open</code> <code class="inline">thunder_read</code> <code class="inline">thunder_click</code> <code class="inline">thunder_type</code> <code class="inline">thunder_scroll</code> <code class="inline">thunder_look</code> <code class="inline">thunder_ghost</code> <code class="inline">thunder_captcha</code> <code class="inline">thunder_think</code> <code class="inline">thunder_rest</code></p>
+}</pre><button class="copybtn" onclick="copyCfg()">📋 Copy MCP config</button></div>
+    <p class="sub" style="margin-top:1.2rem">Then tell Claude: <i>"Open example.com with thunder_open, then read the page with thunder_read."</i> Tools: <code class="inline">thunder_open</code> <code class="inline">thunder_read</code> <code class="inline">thunder_click</code> <code class="inline">thunder_type</code> <code class="inline">thunder_scroll</code> <code class="inline">thunder_look</code> <code class="inline">thunder_ghost</code> <code class="inline">thunder_captcha</code> <code class="inline">thunder_think</code> <code class="inline">thunder_rest</code></p>
   </div>
-</section>
+  <style>
+    .copypaste{position:relative}
+    .copybtn{position:absolute;top:10px;right:10px;background:#0d1424;border:1px solid #1b2740;color:#ffd447;padding:.45rem .9rem;border-radius:10px;font-weight:700;cursor:pointer;font-size:.82rem}
+    .copybtn:hover{border-color:#ffd447}
+  </style>
+  <script>
+    function copyCfg(){
+      navigator.clipboard.writeText(document.getElementById('mcpcfg').textContent.trim());
+      const b=document.querySelector('.copybtn'); b.textContent='✓ Copied!';
+      setTimeout(()=>b.textContent='📋 Copy MCP config',1600);
+    }
+  </script>
+</section></section>
 
 <section id="proofs">
   <div class="wrap">
     <div class="kicker">PROOF, NOT PROMISES</div>
     <h2>Thunder, working — recorded live</h2>
     <p class="sub">Captured from a real <code class="inline">thunder.Body</code> session. These are actual artifacts from the test run, unedited.</p>
+    <div class="bigvideo">
+      <video src="assets/thunder_action.mp4" controls muted playsinline loop></video>
+      <p class="vidcap">🎥 <b>Thunder in action, recorded live:</b> a real Chrome browser driven by the human hand — bezier mouse drift, keystrokes at human cadence, a typo fixed with backspace, eased scrolling with reading pauses. No edits.</p>
+    </div>
+    <style>
+      .bigvideo{margin:1.4rem 0 2rem;border-radius:16px;overflow:hidden;border:1px solid #1b2740;background:#000;box-shadow:0 24px 80px #000a}
+      .bigvideo video{width:100%;display:block;min-height:auto}
+      .vidcap{color:#8b96ad;font-size:.95rem;padding:14px 18px;margin:0}
+      .vidcap b{color:#e8ecf6}
+    </style>
     <div class="shots">
-      <div class="shot"><video src="assets/thunder_session.webm" controls muted playsinline></video><div class="cap">🎥 A live Body session: the human hand types on Wikipedia with real keystroke cadence and scroll pauses.</div></div>
       <div class="shot"><img src="assets/proof_cloudflare.png" alt="ghost vs plain client"><div class="cap"><span class="ok-chip">✓ PASS 200</span> Thunder's <b>Ghost</b> opens a Cloudflare-gated site — the same request with a plain Python client gets <span class="fail-chip">403</span>. The handshake is the difference.</div></div>
       <div class="shot"><img src="assets/proof_hand.png" alt="human hand typing"><div class="cap"><span class="ok-chip">✓</span> The hand typed this — with inter-key delays, a typo it fixed with backspace, and a search submit.</div></div>
       <div class="shot"><img src="assets/proof_detection.png" alt="detection page"><div class="cap">On the classic automation-detection page: <code class="inline">navigator.webdriver</code> patched away — while the Ghost layer needs no browser at all.</div></div>
-    </div>
-    <div class="note"><b>Honest engineering note:</b> no stealth stack is magic. Thunder passed the protocol gate (200 vs 403) with its TLS ghost; the full browser body needs a clean IP + real Chrome (see the Docker image and README engine notes) for the strongest sites. We publish the passes <i>and</i> the limits — that's how the project earns trust.</div>
-  </div>
-</section>
+    </div></section>
 
 <footer>
   <div class="wrap">

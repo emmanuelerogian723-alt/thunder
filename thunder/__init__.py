@@ -15,10 +15,14 @@ and a mind (stewmind-1.7b).
 Dual-licensed spirit: MIT core, optional AGPL engines (nodriver).
 Use Thunder on systems and accounts you are authorized to use.
 """
+try:  # optional strongest engine (needs real Chrome + pip install nodriver)
+    from thunder.nodriver_body import NodriverBody
+except Exception:  # pragma: no cover
+    NodriverBody = None
 from thunder.body import Body
 from thunder.ghost import Ghost
 from thunder.mind import StewMind
 from thunder.fingerprint import Skin, random_skin
 
 __version__ = "0.1.0"
-__all__ = ["Body", "Ghost", "StewMind", "Skin", "random_skin", "__version__"]
+__all__ = ["Body", "Ghost", "StewMind", "Skin", "random_skin", "NodriverBody", "__version__"]

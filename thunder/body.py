@@ -78,12 +78,17 @@ class Body:
         launch_kw: Dict[str, Any] = dict(
             headless=self.headless,
             record_video_dir=str(self._video_dir) if self.record else None,
+            record_video_size={"width": 1366, "height": 900} if self.record else None,
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-sandbox", "--disable-dev-shm-usage",
                 "--disable-infobars", "--window-size=1380,860",
                 f"--window-position={random.randint(0,60)},{random.randint(0,40)}",
             ])
+        if self.engine == "chrome":
+            # REAL Google Chrome (channel), not bundled Chromium
+            import shutil
+            launch_kw["channel"] = "chrome" if shutil.which("google-chrome") else "chromium"
         if self.engine == "nodriver":
             # nodriver is a stronger, separate engine; supported via
             # thunder.nodriver_engine when installed (AGPL-3).
