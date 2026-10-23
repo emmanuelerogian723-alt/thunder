@@ -151,3 +151,76 @@ async def describe_challenge(page, mind=None) -> str:
     if mind is None:
         return prompt  # caller routes screenshot + prompt to a vision model
     return prompt
+
+
+# ── KEYLESS FALLBACKS ─────────────────────────────────────────────
+# Thunder avoids most challenges with skin + hand. These two give you
+# a real shot at the rest WITHOUT any solver subscription.
+
+async def soft_solve(page, wait_after: float = 8.0) -> Dict[str, Any]:
+    """Human-hand click inside the challenge — no solver key needed.
+
+    Non-interactive Turnstile and 'just click the box' reCAPTCHA often
+    pass when the click comes from a human-shaped hand on a warmed-up
+    session instead of an instant synthetic one.
+    """
+    frames = page.frames
+    target = None
+    for f in frames:
+        if any(k in (f.url or "") for k in ("turnstile", "recaptcha", "hcaptcha")):
+            target = f
+            break
+    if target is None:
+        return {"solved": False, "error": "no challenge frame found"}
+    try:
+        box = await target.locator("body").bounding_box()
+        if not box:
+            return {"solved": False, "error": "no clickable area"}
+        from .human import Hand
+        hand = Hand(page)
+        # human approach: drift in from nearby, pause, click
+        await hand.idle(1.5)
+        await hand.click((box["x"] + box["width"] * 0.5 + 15,
+                          box["y"] + box["height"] * 0.5))
+        await page.wait_for_timeout(int(wait_after * 1000))
+        token = await page.evaluate("""(() => {
+          const el = document.querySelector(
+            '[name=cf-turnstile-response],textarea#g-recaptcha-response,[name=h-captcha-response]');
+          return el ? el.value : window.turnbridge_token || null; })()""")
+        return {"solved": bool(token), "token": (token or "")[:24] + "..."}
+    except Exception as e:
+        return {"solved": False, "error": str(e)[:120]}
+
+
+async def ocr_solve(page, input_selector: str = "input",
+                     img_selector: str = "img") -> Dict[str, Any]:
+    """Local OCR for simple image/math CAPTCHAs — still keyless.
+
+    Uses tesseract when installed (apt install tesseract-ocr).
+    Reads the challenge image, types the answer with the human hand.
+    """
+    try:
+        import pytesseract         # optional; pip install pytesseract
+    except ImportError:
+        return {"solved": False,
+                "error": "install pytesseract + tesseract-ocr for local OCR"}
+    import base64
+    img = page.locator(img_selector).first
+    data = await img.screenshot()
+    import io
+    from PIL import Image
+    text_img = Image.open(io.BytesIO(data)).convert("L")
+    answer = pytesseract.image_to_string(
+        text_img, config="--psm 7 -c tessedit_char_whitelist=0123456789+-*=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    ).strip()
+    if not answer:
+        return {"solved": False, "error": "OCR read nothing"}
+    # simple arithmetic like "7 + 4 ="
+    import re
+    m = re.search(r"(\d+)\s*([+\-x*])\s*(\d+)", answer)
+    if m:
+        a, op, c = int(m.group(1)), m.group(2), int(m.group(3))
+        answer = str(a + c if op == "+" else a - c if op == "-" else a * c)
+    from .human import Hand
+    await Hand(page).type(input_selector, answer)
+    return {"solved": True, "answer": answer}

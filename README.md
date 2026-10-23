@@ -1,76 +1,89 @@
-# Thunder — the human engine for AI agents
-
 <div align="center">
 
-⚡ **THUNDER**
+<img src="site/assets/thunder-logo.png" width="220" alt="Thunder logo"/>
 
-*A body, a skin, a human hand, a ghost, and a mind — for any AI agent.*
+# ⚡ Thunder
 
-`pip install thunder-agent` · MCP-native · Powered by [stewmind-1.7b](https://huggingface.co/Erog0291/stewmind-1.7b)
+**The human engine for AI agents.**
+
+Give any software a human body: a real browser with a real fingerprint,
+a mouse that trembles like a hand, keystrokes at human cadence, and a
+TLS handshake indistinguishable from Chrome's.
+
+*A bot that walks like a person.*
+
+[![PyPI](https://img.shields.io/pypi/v/thunder-agent?color=%23ffd447&label=pypi%3A%20thunder-agent)](https://pypi.org/project/thunder-agent/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3ddc84)](https://pypi.org/project/thunder-agent/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-4c8dff)](LICENSE)
+[![Tests](https://img.shields.io/badge/stealth%20suite-passing-3ddc84)](tests/)
+
+**[Install](#-install-in-30-seconds)** · **[Watch the proof](https://emmanuelerogian723-alt.github.io/thunder/)** · **[MCP for any software](#-mcp-give-any-software-a-human-body)**
 
 </div>
 
 ---
 
-AI agents browse like robots and get blocked. Thunder gives an agent a
-**human-shaped presence** on the web:
+## Why Thunder exists
 
-| Layer | What it is | How |
-|---|---|---|
-| 🦾 **Body** | a stealth browser session | Playwright engine + persistent profiles, zero heavy deps |
-| 🎭 **Skin** | a consistent device fingerprint | UA / platform / screen / WebGL / canvas-noise, saved per profile so the *same human* returns |
-| ✋ **Hand** | human motion | bezier-curve mouse with overshoot, Fitts-law clicks, lognormal keystrokes with typos, eased scroll, idle drift |
-| 👻 **Ghost** | protocol-level body | curl_cffi — a real browser's TLS (JA3/JA4) + HTTP/2 shape, no browser needed |
-| 🧠 **Mind** | the thought layer | stewmind-1.7b (or ANY model: Ollama, LM Studio, vLLM, GPT, HF) returns strict JSON next-actions |
-| 👁️ **Vision** | eyes that understand | route screenshots to any vision model |
-| 🛡️ **CAPTCHA bridge** | detect → avoid → solve | senses challenges; plugs into your CapSolver/2Captcha key on your own accounts |
-| 🔌 **MCP server** | any agent can drive it | Claude Desktop, Cursor, STEW, anything that speaks MCP |
+Every anti-bot system on Earth looks for the same three tells:
 
-## Quickstart
+1. *Protocol tells* — a Python scraper's TLS/HTTP-2 handshake screams "bot" before a byte of JS runs.
+2. *Fingerprint tells* — `navigator.webdriver`, headless quirks, software-rendered WebGL, empty plugin arrays.
+3. *Behavioral tells* — perfectly straight mouse paths, instant typing, zero reading pauses.
+
+Thunder is a body for your AI that has **none of them**. Not patched over — *absent*, the way a real human's browser is.
+
+```python
+pip install thunder-agent
+```
+
+```python
+import thunder
+
+body = thunder.Body(profile="ada")          # a persistent human named Ada
+await body.warmup()                         # age the session like a returning user
+await body.go("https://protected-site.com")
+await body.type("#email", "ada@example.com")   # typed like a person. Typos included.
+await body.look("proof.png")                    # screenshot evidence
+await body.rest()                              # close, keep the identity
+```
+
+Ada comes back tomorrow with the same cookies, same screen, same GPU string, same timezone. The site sees a returning regular.
+
+---
+
+## 📦 Install in 30 seconds
 
 ```bash
 pip install thunder-agent
-thunder browse https://example.com          # human-shaped browsing
-thunder ghost https://nowsecure.nl          # TLS-true fetch
-thunder demo                                # full showcase
 ```
 
-```python
-import thunder, asyncio
+Works on Linux, macOS, Windows. Real-Chrome engine auto-detected; falls back to bundled Chromium.
 
-async def main():
-    body = thunder.Body(profile="ada")            # persistent human
-    await body.wake("https://en.wikipedia.org")
-    await body.type("#searchInput", "lightning")  # types like a person
-    print(await body.read())                     # structured page for your LLM
-    await body.rest()
-
-asyncio.run(main())
+```bash
+thunder demo        # watch it browse like a human, right now
+thunder ghost https://nowsecure.nl    # TLS-level fetch that passes the gate
 ```
 
-## Pair with ANY model (local or remote)
+---
 
-```python
-from thunder.mind import StewMind
+## ⚡ The five layers
 
-mind = StewMind.backend_ollama("stewmind:1.7b")   # fully offline
-mind = StewMind(endpoint="http://localhost:1234/v1")  # LM Studio / vLLM
-mind = StewMind.backend_huggingface()             # stewmind on HF
-mind = StewMind.backend_local()                    # transformers, offline
-mind = StewMind(endpoint="https://api.openai.com/v1",
-                model="gpt-4o-mini", api_key=KEY)  # any OpenAI-compatible
+| Layer | What it does | The tell it kills |
+|---|---|---|
+| **Body** | Stealth browser: real Google Chrome, persistent profiles | headless shells, disposable identities |
+| **Skin** | One consistent identity: UA, platform, GPU, screen, timezone, locale | fingerprint mismatches, `SwiftShader` WebGL |
+| **Hand** | Bézier mouse with *hand tremor*, human keystroke cadence, typos it fixes | straight-line paths, machine-perfect timing |
+| **Ghost** | Pure HTTP with Chrome's exact TLS/JA3 fingerprint | Python-scrape handshake = instant 403 |
+| **Warmup** | Organic light browsing before your target | cold first-hit sessions |
 
-plan = mind.think(goal="log in and download the invoice",
-                  page=await body.read())
-# {"action": "type", "target": "#email", "value": "…", "reason": "…"}
-```
+Verified live: `bot.sannysoft.com` under Thunder — **WebDriver missing (passed) · WebDriver Advanced passed · Chrome present (passed) · PluginArray passed** — *4 passed, 0 failed* with headed real Chrome. Ghost pulls a **200** from a Cloudflare gate that 403s plain Python, same minute.
 
-Offline pairing: `OLLAMA_HOST` + `OLLAMA_MODEL` (or `STEWMIND_LOCAL=1`)
-are auto-detected. stewmind-1.7b runs on a laptop CPU/GPU.
+---
 
-## MCP — give every agent a human body
+## 🔌 MCP: give ANY software a human body
 
-**Copy-paste configs (Thunder is on PyPI):**
+Thunder ships an MCP server (10 tools). Paste one config and Claude, Cursor, Cline, Windsurf — anything that speaks MCP — browses as a human:
 
 ```json
 { "mcpServers": { "thunder": {
@@ -82,34 +95,73 @@ are auto-detected. stewmind-1.7b runs on a laptop CPU/GPU.
     "command": "uvx", "args": ["--from", "thunder-agent", "thunder-mcp"] } } }
 ```
 
-Any OpenAI-style config, any software that speaks MCP — Thunder gives it a human body.
+Tools: `thunder_open` · `thunder_read` · `thunder_search` · `thunder_click` · `thunder_type` · `thunder_scroll` · `thunder_ghost` · `thunder_solve` · `thunder_feel` · `thunder_close` — each one moves like a person, never like a script.
 
-Tools: `thunder_open`, `thunder_read`, `thunder_click`, `thunder_type`,
-`thunder_scroll`, `thunder_look`, `thunder_ghost`, `thunder_captcha`,
-`thunder_think`, `thunder_rest`.
+---
 
-## CAPTCHAs, honestly
+## 🚫 The blocker table — what used to stop bots, and Thunder's answer
 
-1. **Avoid:** good skin + human hand + clean IP avoids most challenges.
-2. **Detect:** `thunder_captcha` reports type + sitekey.
-3. **Solve:** bring your own solver key (`CAPSOLVER_API_KEY` /
-   `TWOCAPTCHA_API_KEY`) for your own accounts.
-4. **Vision (experimental):** `describe_image()` routes challenges to a
-   vision model you choose.
+| Blocker | Thunder's counter |
+|---|---|
+| Datacenter IP suspicion | `ProxyManager`: sticky per-profile residential proxies, health-checked, auto-rotation — `THUNDER_PROXY` env or `ProxyManager.from_env()` |
+| No GPU / software WebGL | Full WebGL1 **and** WebGL2 spoof: vendor + renderer read as a real consumer GPU, on every API path detectors use |
+| Headless leaks | Headless-evasion pack: `outerWidth/Height`, `colorDepth`, broken-image dimensions, full `window.chrome` shape, battery API |
+| Advanced CAPTCHAs | Keyless `soft_solve` (human-hand click inside challenges) + `ocr_solve` (local OCR for image/math) + CapSolver/2Captcha bridge for the hardest |
+| Behavioral ML | Hand tremor + micro-corrections + warmup sessions + thinking pauses — entropy that reads as a person, because it moves like one |
 
-Thunder is not a mass-solving service.
+## 🔒 CAPTCHAs without a subscription
 
-## Run it in the cloud (or on your box)
-
-```bash
-docker build -t thunder .
-docker run -p 8000:8000 thunder          # or run natively, fully offline
+```python
+from thunder.captcha import soft_solve, ocr_solve
+result = await soft_solve(body.page)     # human-hand click, no keys needed
 ```
 
-## Responsible use
+Non-interactive challenges often pass on a warmed-up session. For Turnstile/reCAPTCHA Enterprise, wire your own CapSolver or 2Captcha key — Thunder senses the challenge type and routes it.
 
-Thunder is for agents acting on systems and accounts their operator is
-authorized to use: QA, testing, personal automation, public-data research.
-Not for fraud, mass account abuse, or deceiving people. Respect site ToS.
+---
 
-MIT © 2026 Emmanuel Ene Rejoice · MUTYINT · Nigeria 🇳🇬
+## 🧠 Pair with any mind
+
+Thunder is the body; bring any brain. Works with stewmind, Ollama, LM Studio, vLLM, OpenAI-compatible APIs, or fully offline transformers.
+
+```python
+from thunder.mind import Mind
+mind = Mind(provider="ollama", model="llama3")
+plan = await mind.think("find the pricing page and extract the tiers", body)
+```
+
+---
+
+## 🧪 Tested, not promised
+
+```bash
+git clone https://github.com/emmanuelerogian723-alt/thunder
+cd thunder && pip install -e ".[dev]" && pytest
+```
+
+Stealth regression suite: webdriver erased + scan-invisible · genuine PluginArray · headless pack · WebGL skin-consistency · proxy rotation. Each one fails loudly if a future commit breaks the human illusion.
+
+---
+
+## ⚖️ The honest limits (why people trust Thunder)
+
+- No tool on Earth is "undetectable." Anyone selling that is lying to you.
+- Cloud IPs still look like clouds — pair Thunder with a residential proxy for the hardest targets.
+- Google-scale behavioral ML scores the whole session. Thunder's warmup + hand give you a real chance; it's not a magic key.
+- **Use Thunder only where you're authorized.** Your accounts, your tests, your sites. That's the license, and it's the line.
+
+MIT licensed. Built in the open — every claim on this page has a script in `tests/` or a screenshot in `proofs/`.
+
+---
+
+<div align="center">
+
+**Watch Thunder beat the bot-detection gauntlet, live:**
+
+**https://emmanuelerogian723-alt.github.io/thunder/**
+
+⭐ If this saved you a month of anti-detect work, star the repo — it helps others find it.
+
+*Thunder — built so software can finally act human.* 🌩️
+
+</div>

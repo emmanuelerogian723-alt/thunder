@@ -42,10 +42,12 @@ class Body:
     def __init__(self, profile: str = "default", skin: Optional[Skin] = None,
                  engine: str = "playwright-stealth", headless: bool = True,
                  record_video: bool = False, viewport: Optional[dict] = None,
-                 locale: str = "en-US", timezone: str = "Africa/Lagos"):
+                 locale: str = "en-US", timezone: str = "Africa/Lagos",
+                 proxy=None):
         self.profile = profile
         self.engine = engine
         self.headless = headless
+        self.proxy = proxy
         self.viewport = viewport
         self.record = record_video
         self.locale = locale
@@ -93,6 +95,13 @@ class Body:
             # nodriver is a stronger, separate engine; supported via
             # thunder.nodriver_engine when installed (AGPL-3).
             raise ValueError("use thunder.nodriver_engine.NodriverBody for the nodriver engine")
+        if self.proxy:
+            p = self.proxy
+            if isinstance(p, str):
+                from .proxy import _normalize
+                p = _normalize(p)
+            if p:
+                launch_kw["proxy"] = p
         launch_kw.update({
             "user_agent": self.skin.user_agent,     # header + JS always match the Skin
             "viewport": {"width": self.skin.window_w, "height": self.skin.window_h},
@@ -131,6 +140,13 @@ class Body:
             await page.add_init_script(self.skin.injection_script())
         except Exception:
             pass
+
+    async def warmup(self, visits: int = 2) -> dict:
+        """Age the session with organic light browsing so arriving at
+        your target reads like a returning human, not a cold first hit.
+        Big targets score the WHOLE session — this is the counter."""
+        from .warmup import warmup
+        return await warmup(self, visits=visits)
 
     async def rest(self):
         """Close the body gracefully (context persists to disk)."""

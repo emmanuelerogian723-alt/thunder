@@ -43,6 +43,7 @@ class Skin:
     chrome_runtime: bool = True
     do_not_track: str = "unspecified"
     canvas_noise: float = 0.0
+    headless: bool = False
 
     def save(self, path: str) -> None:
         p = os.path.expanduser(path)
@@ -88,18 +89,28 @@ class Skin:
   def(navigator, 'languages', SKIN.languages);
   def(navigator, 'hardwareConcurrency', SKIN.hardware_concurrency);
   def(navigator, 'deviceMemory', SKIN.device_memory);
-  // plugins: KEEP the genuine PluginArray when the browser already has a
-  // human-plausible one (real Chrome does). Only fabricate if it is empty
-  // or not a real PluginArray (headless shells) — detectors check typeof.
+  // plugins: NEVER replace the object — detectors check `instanceof
+  // PluginArray` and a fake plain array fails. Real Chrome has 5 PDF
+  // plugins; headless shells have the genuine PluginArray but length 0.
+  // Keep the real object, just make it report a human browser's content.
   try {
-    if (!navigator.plugins || !(navigator.plugins instanceof PluginArray) ||
+    if (navigator.plugins && navigator.plugins instanceof PluginArray &&
         navigator.plugins.length === 0) {
-      def(navigator, 'plugins', [
-        {name:'Chrome PDF Plugin', filename:'internal-pdf-viewer'},
-        {name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjal'},
-        {name:'Chromium PDF Viewer', filename:'internal-pdf-viewer'},
-        {name:'Microsoft Edge PDF Plugin', filename:'internal-pdf-viewer'},
-        {name:'WebKit built-in PDF', filename:'internal-pdf-viewer'}]);
+      const pdfs = ['Chrome PDF Plugin','Chrome PDF Viewer','Chromium PDF Viewer',
+                    'Microsoft Edge PDF Plugin','WebKit built-in PDF'];
+      Object.defineProperty(navigator.plugins, 'length', {
+        get: () => pdfs.length, configurable: true});
+      // PluginArray is an exotic object: indexed getters may be refused.
+      // Best-effort per index — type + length are the real detection rows.
+      pdfs.forEach((name, i) => {
+        try {
+          Object.defineProperty(navigator.plugins, i, {
+            get: () => ({name: name, filename: 'internal-pdf-viewer',
+                         description: 'Portable Document Format',
+                         length: 2, item: () => null, namedItem: () => null}),
+            configurable: true});
+        } catch (e) {}
+      });
     }
   } catch (e) {}
   def(screen, 'width', SKIN.screen_w);
@@ -115,15 +126,25 @@ class Skin:
     p && p.name === 'notifications'
       ? Promise.resolve({state: Notification.permission})
       : orig(p);
-  // WebGL identity: the standard debug-renderer spoof
+  // WebGL identity: full spoof on WebGL1 AND WebGL2.
+  // Some detectors read getParameter(37445/37446) directly without
+  // the debug extension — cover both paths so vendor+renderer always
+  // tell the Skin's story (a real GPU, never 'SwiftShader/ANGLE (Google)').
   try {
-    const origExt = WebGLRenderingContext.prototype.getExtension;
-    WebGLRenderingContext.prototype.getExtension = function(n) {
-      if (n === 'WEBGL_debug_renderer_info')
-        return { UNMASKED_VENDOR_WEBGL: SKIN.webgl_vendor,
-                 UNMASKED_RENDERER_WEBGL: SKIN.webgl_renderer };
-      return origExt.call(this, n);
-    };
+    for (const Ctx of [WebGLRenderingContext, WebGL2RenderingContext]) {
+      const origExt = Ctx.prototype.getExtension;
+      Ctx.prototype.getExtension = function(n) {
+        if (n === 'WEBGL_debug_renderer_info')
+          return { UNMASKED_VENDOR_WEBGL: 37445, UNMASKED_RENDERER_WEBGL: 37446 };
+        return origExt.call(this, n);
+      };
+      const origParam = Ctx.prototype.getParameter;
+      Ctx.prototype.getParameter = function(p) {
+        if (p === 37445) return SKIN.webgl_vendor;      // UNMASKED_VENDOR
+        if (p === 37446) return SKIN.webgl_renderer;    // UNMASKED_RENDERER
+        return origParam.call(this, p);
+      };
+    }
   } catch (e) {}
   // Canvas noise: stable per-skin, not per-call
   const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
@@ -131,6 +152,48 @@ class Skin:
     const r = origToDataURL.apply(this, a);
     return r.length > 64 ? r.slice(0, 64) + String(SKIN.seed % 97) + r.slice(65) : r;
   };
+  // ── HEADLESS EVASION PACK (only applied in headless mode) ────────
+  if (SKIN.headless) {
+    // outerWidth/outerHeight: real Chrome reports them; headless reports 0
+    try {
+      Object.defineProperty(window, 'outerWidth',  {get: () => SKIN.window_w, configurable: true});
+      Object.defineProperty(window, 'outerHeight', {get: () => SKIN.window_h, configurable: true});
+      Object.defineProperty(window, 'screenX', {get: () => 0, configurable: true});
+      Object.defineProperty(window, 'screenY', {get: () => 0, configurable: true});
+    } catch (e) {}
+    // color depth: headless historically reported 0/undefined
+    try { def(screen, 'colorDepth', 24); def(screen, 'pixelDepth', 24); } catch (e) {}
+    // broken-image dimensions: headless reports 0x0, real Chrome 16x16
+    try {
+      const origNI = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'naturalWidth');
+      const origNH = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'naturalHeight');
+      if (origNI && origNI.get) {
+        Object.defineProperty(HTMLImageElement.prototype, 'naturalWidth', {
+          get: function() { const w = origNI.get.call(this); return (w === 0 && this.complete && this.src) ? 16 : w; },
+          configurable: true});
+        Object.defineProperty(HTMLImageElement.prototype, 'naturalHeight', {
+          get: function() { const h = origNH.get.call(this); return (h === 0 && this.complete && this.src) ? 16 : h; },
+          configurable: true});
+      }
+    } catch (e) {}
+    // full window.chrome shape (headless chrome has none)
+    if (SKIN.chrome_runtime) {
+      window.chrome = window.chrome || {};
+      window.chrome.app = window.chrome.app || {isInstalled: false, InstallState: {DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed'}, RunningState: {CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running'}};
+      window.chrome.csi = window.chrome.csi || function(){ return {startE: Date.now()-60000, onloadT: Date.now()-59000, pageT: Date.now()-58000, tran: 15}; };
+      window.chrome.loadTimes = window.chrome.loadTimes || function(){ return {commitLoadTime: Date.now()/1000-60, connectionInfo: 'http/1.1', finishDocumentLoadTime: Date.now()/1000-58, finishLoadTime: Date.now()/1000-57, firstPaintAfterLoadTime: Date.now()/1000-56, firstPaintTime: Date.now()/1000-59, navigationType: 'Other', npnNegotiatedProtocol: 'unknown', requestTime: Date.now()/1000-61, startLoadTime: Date.now()/1000-60, wasAlternateProtocolAvailable: false, wasFetchedViaSpdy: false, wasNpnNegotiated: false}; };
+      window.chrome.runtime = window.chrome.runtime || {connect: function(){return {onMessage: {addListener: function(){}}};}, sendMessage: function(){}, OnInstalledReason: {}, PlatformOs: {}};
+    }
+    // battery API: headed desktop Chrome has it, headless doesn't
+    try {
+      if (!navigator.getBattery) {
+        navigator.getBattery = () => Promise.resolve({
+          charging: true, chargingTime: 0, dischargingTime: Infinity, level: 1,
+          addEventListener: function(){}, removeEventListener: function(){}
+        });
+      }
+    } catch (e) {}
+  }
   // Headless chrome lacks a Notification object with permission
   try { if (!window.Notification) window.Notification = {permission: 'default', requestPermission: () => Promise.resolve('granted')}; } catch(e){}
 })();

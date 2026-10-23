@@ -106,11 +106,30 @@ class Hand:
 
     # ── low-level primitives ───────────────────────────────────────
     async def _move(self, x: float, y: float, steps_pause: float = 0.004):
+        """Bézier travel with HAND TREMOR: micro perpendicular noise on
+        every waypoint. Behavioral ML scores mouse entropy — straight,
+        mathematically-clean paths are the automation tell, so we add
+        the noise a real hand has, then micro-correct at the end."""
         path = bezier_path(self._pos, (x, y), self.rnd)
-        for (px, py) in path:
+        last = path[-1] if path else self._pos
+        for i, (px, py) in enumerate(path):
+            # tremor: small perpendicular jitter, scaled by segment speed
+            dx, dy = x - self._pos[0], y - self._pos[1]
+            dist = max((dx*dx + dy*dy) ** 0.5, 1.0)
+            nx, ny = -dy / dist, dx / dist           # normal to heading
+            amp = self.rnd.uniform(0.2, 1.4)          # ~0.2-1.4px wobble
+            if i not in (0, len(path) - 1):
+                px += nx * amp * self.rnd.uniform(-1, 1)
+                py += ny * amp * self.rnd.uniform(-1, 1)
             await self.page.mouse.move(px, py)
             self._pos = (px, py)
             await asyncio.sleep(steps_pause * self.rnd.uniform(0.6, 1.6) * self.speed)
+        # micro-correction: real hands land, then nudge onto the target
+        if self.rnd.random() < 0.35 and abs(last[0] - x) + abs(last[1] - y) > 0.5:
+            await asyncio.sleep(self.rnd.uniform(0.02, 0.06))
+            await self.page.mouse.move(x + self.rnd.uniform(-1.5, 1.5),
+                                       y + self.rnd.uniform(-1.5, 1.5))
+            self._pos = (x, y)
 
     async def move_to(self, x: float, y: float):
         await self._move(x, y)
