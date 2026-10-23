@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THUNDER — The Human Engine for AI Agents</title>
+<meta name="description" content="Thunder gives AI agents a human body: a stealth browser, a human hand, a browser-true TLS ghost, a CAPTCHA bridge, and a mind powered by stewmind-1.7b. MCP-native. Open source.">
+<link rel="icon" href="assets/thunder-logo.png">
+<style>
+  :root{
+    --bg:#05070f; --bg2:#0a0f1e; --panel:#0d1424; --line:#1b2740;
+    --txt:#e8ecf6; --dim:#8b96ad; --bolt:#ffd447; --volt:#6ea8ff; --ok:#3ddc84;
+    --mono: ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--txt);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.6;overflow-x:hidden}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  a{color:var(--volt);text-decoration:none}
+  a:hover{color:var(--bolt)}
+  .kicker{letter-spacing:.35em;font-size:.72rem;color:var(--bolt);text-transform:uppercase;font-weight:700}
+  /* ── hero ─────────────────────────────── */
+  header{position:relative;min-height:92vh;display:flex;align-items:center;text-align:center;overflow:hidden}
+  #storm{position:absolute;inset:0;z-index:0}
+  .hero-in{position:relative;z-index:2;width:100%}
+  .hero-in img.logo{width:150px;border-radius:24px;box-shadow:0 0 90px rgba(255,212,71,.35);animation:pulse 4s ease-in-out infinite}
+  @keyframes pulse{50%{transform:scale(1.04);box-shadow:0 0 140px rgba(255,212,71,.55)}}
+  h1{font-size:clamp(2.4rem,7vw,4.6rem);font-weight:900;letter-spacing:.06em;margin:.5rem 0 .2rem;
+     background:linear-gradient(180deg,#fff 30%,#ffd447 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tag{color:var(--dim);font-size:1.15rem;max-width:640px;margin:0 auto}
+  .cta{margin-top:2rem;display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{padding:.9rem 1.6rem;border-radius:14px;font-weight:700;font-size:.95rem;transition:.2s;border:1px solid var(--line)}
+  .btn.primary{background:linear-gradient(135deg,#ffd447,#ff9c1a);color:#231a00;box-shadow:0 8px 40px rgba(255,180,40,.35)}
+  .btn.primary:hover{transform:translateY(-2px)}
+  .btn.ghost{background:var(--panel);color:var(--txt)}
+  .btn.ghost:hover{border-color:var(--bolt)}
+  .install{margin-top:1.6rem;display:inline-block;font-family:var(--mono);background:#000a; border:1px solid var(--line);padding:.7rem 1.2rem;border-radius:12px;color:var(--bolt);font-size:.95rem}
+  .badges{margin-top:1.2rem;color:var(--dim);font-size:.85rem}
+  /* ── sections ─────────────────────────── */
+  section{padding:72px 0}
+  h2{font-size:clamp(1.6rem,4vw,2.4rem);font-weight:850;margin-bottom:.6rem}
+  .sub{color:var(--dim);max-width:640px;margin-bottom:2.2rem}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;transition:.25s}
+  .card:hover{transform:translateY(-4px);border-color:#2b3f6e;box-shadow:0 18px 50px #0009}
+  .card .emoji{font-size:1.6rem}
+  .card h3{font-size:1.05rem;margin:.4rem 0 .3rem}
+  .card p{color:var(--dim);font-size:.92rem}
+  .tagchip{display:inline-block;font-family:var(--mono);font-size:.68rem;color:var(--bolt);border:1px solid #3a2f10;background:#191302;padding:.15rem .5rem;border-radius:99px;margin-top:.8rem}
+  pre{background:#02040a;border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-family:var(--mono);font-size:.85rem;color:#c9d6f0;line-height:1.7}
+  code.inline{font-family:var(--mono);color:var(--bolt);background:#000a;padding:.1rem .4rem;border-radius:6px}
+  /* ── proofs ──────────────────────────── */
+  .shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+  .shot{position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--line);background:#000}
+  .shot img,.shot video{width:100%;display:block}
+  .shot .cap{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#000d);padding:26px 14px 12px;font-size:.85rem}
+  .ok-chip{color:var(--ok);font-weight:700}
+  .fail-chip{color:#ff7a7a;font-weight:700}
+  video{filter:saturate(1.1)}
+  .note{border-left:3px solid var(--bolt);background:var(--panel);padding:16px 18px;border-radius:0 12px 12px 0;color:var(--dim);font-size:.9rem;margin-top:1.4rem}
+  footer{border-top:1px solid var(--line);padding:34px 0;color:var(--dim);font-size:.85rem;text-align:center}
+  footer b{color:var(--txt)}
+  .float{animation:float 7s ease-in-out infinite}
+  @keyframes float{50%{transform:translateY(-12px)}}
+</style>
+</head>
+<body>
+<canvas id="storm"></canvas>
+<header>
+  <div class="wrap hero-in">
+    <img class="logo float" src="assets/thunder-logo.png" alt="Thunder logo">
+    <div class="kicker">MUTYINT · OPEN SOURCE · MCP-NATIVE</div>
+    <h1>THUNDER</h1>
+    <p class="tag">The human engine for AI agents. A body, a skin, a human hand, a ghost, and a mind — so your agent works on the web like a person, not a bot.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank">⭐ Star on GitHub</a>
+      <a class="btn ghost" href="#proofs">See it work ↓</a>
+    </div>
+    <div class="install">pip install thunder-agent</div>
+    <div class="badges">MIT license · pairs with any model · stewmind-1.7b inside · Nigeria 🇳🇬</div>
+  </div>
+</header>
+
+<section id="layers">
+  <div class="wrap">
+    <div class="kicker">WHAT THUNDER IS</div>
+    <h2>Seven layers of a human-shaped agent</h2>
+    <p class="sub">Every layer is real code, installable today. No dashboards to babysit — one library, one MCP server.</p>
+    <div class="grid">
+      <div class="card"><div class="emoji">🦾</div><h3>Body</h3><p>A persistent stealth browser session. Same cookies, same screen, same history — a returning human, not a new visitor.</p><span class="tagchip">thunder.Body</span></div>
+      <div class="card"><div class="emoji">🎭</div><h3>Skin</h3><p>A consistent device fingerprint: UA, platform, screen, WebGL, canvas noise — generated from real-world distributions, saved per profile.</p><span class="tagchip">thunder.Skin</span></div>
+      <div class="card"><div class="emoji">✋</div><h3>Human hand</h3><p>Bézier mouse paths with overshoot and micro-corrections, Fitts-law clicks, lognormal keystrokes, rare typos fixed with backspace, eased scroll.</p><span class="tagchip">thunder.Hand</span></div>
+      <div class="card"><div class="emoji">👻</div><h3>Ghost</h3><p>A real browser's TLS (JA3/JA4) and HTTP/2 handshake with zero browser weight — for the fetches that don't need JavaScript.</p><span class="tagchip">thunder.Ghost</span></div>
+      <div class="card"><div class="emoji">🧠</div><h3>Mind</h3><p>Powered by <a href="https://huggingface.co/Erog0291/stewmind-1.7b" target="_blank">stewmind-1.7b</a> — and pairs with ANY model: Ollama, LM Studio, vLLM, GPT, or fully offline.</p><span class="tagchip">StewMind</span></div>
+      <div class="card"><div class="emoji">👁️</div><h3>Vision</h3><p>Screenshots routed to any vision model you choose. The body's eyes become understanding.</p><span class="tagchip">describe_image()</span></div>
+      <div class="card"><div class="emoji">🛡️</div><h3>CAPTCHA bridge</h3><p>Senses every challenge on a page, avoids most with skin + hand, and plugs into your own solver key for your own accounts.</p><span class="tagchip">thunder.captcha</span></div>
+      <div class="card"><div class="emoji">🔌</div><h3>MCP server</h3><p>Claude Desktop, Cursor, STEW — any MCP client can drive the body with ten human tools.</p><span class="tagchip">thunder serve</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="pair">
+  <div class="wrap">
+    <div class="kicker">RUNS ANYWHERE · PAIRS WITH ANYTHING</div>
+    <h2>Your model, your hardware, your rules</h2>
+    <p class="sub">Thunder runs fully local — pair it with Ollama or LM Studio and it never touches the cloud. Or point it at any OpenAI-compatible endpoint.</p>
+    <pre>from thunder.mind import StewMind
+
+mind = StewMind.backend_ollama("stewmind:1.7b")    # fully offline
+mind = StewMind(endpoint="http://localhost:1234/v1")   # LM Studio / vLLM
+mind = StewMind.backend_huggingface()              # stewmind on HF
+mind = StewMind.backend_local()                     # transformers, offline
+
+plan = mind.think(goal="log in and download the invoice",
+                  page=await body.read())
+# {"action": "type", "target": "#email", "value": "…", "reason": "…"}</pre>
+  </div>
+</section>
+
+<section id="mcp">
+  <div class="wrap">
+    <div class="kicker">ONE CONFIG, EVERY AGENT</div>
+    <h2>Give any agent a human body</h2>
+    <pre>{
+  "mcpServers": {
+    "thunder": { "command": "python", "args": ["-m", "thunder.mcp_server"] }
+  }
+}</pre>
+    <p class="sub" style="margin-top:1rem">Tools: <code class="inline">thunder_open</code> <code class="inline">thunder_read</code> <code class="inline">thunder_click</code> <code class="inline">thunder_type</code> <code class="inline">thunder_scroll</code> <code class="inline">thunder_look</code> <code class="inline">thunder_ghost</code> <code class="inline">thunder_captcha</code> <code class="inline">thunder_think</code> <code class="inline">thunder_rest</code></p>
+  </div>
+</section>
+
+<section id="proofs">
+  <div class="wrap">
+    <div class="kicker">PROOF, NOT PROMISES</div>
+    <h2>Thunder, working — recorded live</h2>
+    <p class="sub">Captured from a real <code class="inline">thunder.Body</code> session. These are actual artifacts from the test run, unedited.</p>
+    <div class="shots">
+      <div class="shot"><video src="assets/thunder_session.webm" controls muted playsinline></video><div class="cap">🎥 A live Body session: the human hand types on Wikipedia with real keystroke cadence and scroll pauses.</div></div>
+      <div class="shot"><img src="assets/proof_cloudflare.png" alt="ghost vs plain client"><div class="cap"><span class="ok-chip">✓ PASS 200</span> Thunder's <b>Ghost</b> opens a Cloudflare-gated site — the same request with a plain Python client gets <span class="fail-chip">403</span>. The handshake is the difference.</div></div>
+      <div class="shot"><img src="assets/proof_hand.png" alt="human hand typing"><div class="cap"><span class="ok-chip">✓</span> The hand typed this — with inter-key delays, a typo it fixed with backspace, and a search submit.</div></div>
+      <div class="shot"><img src="assets/proof_detection.png" alt="detection page"><div class="cap">On the classic automation-detection page: <code class="inline">navigator.webdriver</code> patched away — while the Ghost layer needs no browser at all.</div></div>
+    </div>
+    <div class="note"><b>Honest engineering note:</b> no stealth stack is magic. Thunder passed the protocol gate (200 vs 403) with its TLS ghost; the full browser body needs a clean IP + real Chrome (see the Docker image and README engine notes) for the strongest sites. We publish the passes <i>and</i> the limits — that's how the project earns trust.</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>THUNDER</b> — the human engine for AI agents · built by <b>Emmanuel Ene Rejoice</b> / MUTYINT · powered by <a href="https://huggingface.co/Erog0291/stewmind-1.7b" target="_blank">stewmind-1.7b</a></p>
+    <p style="margin-top:.6rem">MIT © 2026 · Use Thunder on systems and accounts you are authorized to use. Respect site ToS and local law.</p>
+  </div>
+</footer>
+
+<script>
+// ── animated storm behind the hero ──────────────────────────
+const cv = document.getElementById('storm'), ctx = cv.getContext('2d');
+let bolts = [], W, H;
+function resize(){ W = cv.width = innerWidth; H = cv.height = document.querySelector('header').offsetHeight; }
+addEventListener('resize', resize); resize();
+function spawnBolt(){
+  const x = Math.random()*W;
+  const pts = [[x, 0]]; let px = x, py = 0;
+  while (py < H){ py += 24 + Math.random()*40; px += (Math.random()-0.5)*70; pts.push([px, py]); }
+  bolts.push({pts, life: 1});
+  if (Math.random() < 0.4) setTimeout(spawnBolt, 90);
+}
+function tick(){
+  ctx.clearRect(0,0,W,H);
+  ctx.globalCompositeOperation = 'lighter';
+  bolts = bolts.filter(b => b.life > 0);
+  for (const b of bolts){
+    ctx.beginPath();
+    b.pts.forEach(([x,y],i) => i ? ctx.lineTo(x,y) : ctx.moveTo(x,y));
+    ctx.strokeStyle = `rgba(255,212,71,${b.life*0.55})`;
+    ctx.lineWidth = 2; ctx.shadowColor = '#ffd447'; ctx.shadowBlur = 18;
+    ctx.stroke();
+    b.life -= 0.03;
+  }
+  ctx.shadowBlur = 0;
+  requestAnimationFrame(tick);
+}
+setInterval(() => Math.random() < 0.5 && spawnBolt(), 900);
+tick();
+</script>
+</body>
+</html>
