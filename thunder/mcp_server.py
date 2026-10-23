@@ -173,7 +173,7 @@ async def serve_stdio():
             send({"jsonrpc": "2.0", "id": rid, "result": {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "thunder", "version": "0.1.0"}}})
+                "serverInfo": {"name": "thunder", "version": __import__("thunder").__version__}}})
         elif method == "notifications/initialized":
             continue
         elif method == "tools/list":

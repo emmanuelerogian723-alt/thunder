@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Thunder Demo — Human Signup Proof</title>
+<style>
+  body{background:#05070f;color:#e8ecf6;font-family:Inter,system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}
+  .card{background:#0d1424;border:1px solid #1b2740;border-radius:18px;padding:34px;width:min(92vw,420px)}
+  h1{font-size:1.35rem;margin:0 0 .3rem}
+  p{color:#8b96ad;font-size:.9rem;margin:0 0 1.4rem}
+  label{display:block;font-size:.78rem;color:#8b96ad;margin:.9rem 0 .3rem}
+  input{width:100%;box-sizing:border-box;padding:.75rem .9rem;border-radius:10px;border:1px solid #1b2740;background:#05070f;color:#e8ecf6;font-size:.95rem}
+  input:focus{outline:2px solid #ffd447}
+  button{margin-top:1.5rem;width:100%;padding:.85rem;border:0;border-radius:12px;background:linear-gradient(135deg,#ffd447,#ff9c1a);color:#231a00;font-weight:800;font-size:1rem;cursor:pointer}
+  .ok{display:none;color:#3ddc84;font-weight:700;margin-top:1.2rem}
+  .logo{font-size:1.6rem}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">⚡</div>
+  <h1>Thunder Demo Account</h1>
+  <p>This signup form is on Thunder's own website — a live target for the human hand.</p>
+  <form id="f" onsubmit="event.preventDefault();document.getElementById('ok').style.display='block';document.getElementById('f').style.display='none'">
+    <label>Full name</label><input id="name" autocomplete="off">
+    <label>Email address</label><input id="email" autocomplete="off">
+    <label>Password</label><input id="pw" type="password" autocomplete="off">
+    <button type="submit">Create account</button>
+  </form>
+  <div id="ok" class="ok">✓ Account created — not a single bot signal.</div>
+</div>
+</body>
+</html>

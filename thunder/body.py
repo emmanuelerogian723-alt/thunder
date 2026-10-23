@@ -93,6 +93,12 @@ class Body:
             # nodriver is a stronger, separate engine; supported via
             # thunder.nodriver_engine when installed (AGPL-3).
             raise ValueError("use thunder.nodriver_engine.NodriverBody for the nodriver engine")
+        launch_kw.update({
+            "user_agent": self.skin.user_agent,     # header + JS always match the Skin
+            "viewport": {"width": self.skin.window_w, "height": self.skin.window_h},
+            "locale": self.locale,
+            "timezone_id": self.timezone,
+        })
         self._browser = await self._pw.chromium.launch_persistent_context(
             str(self.user_data_dir), **launch_kw)
         ctx = self._browser

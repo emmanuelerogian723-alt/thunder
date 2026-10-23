@@ -70,10 +70,19 @@ are auto-detected. stewmind-1.7b runs on a laptop CPU/GPU.
 
 ## MCP — give every agent a human body
 
+**Copy-paste configs (Thunder is on PyPI):**
+
 ```json
 { "mcpServers": { "thunder": {
-    "command": "python", "args": ["-m", "thunder.mcp_server"] } } }
+    "command": "pipx", "args": ["run", "thunder-agent", "thunder-mcp"] } } }
 ```
+
+```json
+{ "mcpServers": { "thunder": {
+    "command": "uvx", "args": ["--from", "thunder-agent", "thunder-mcp"] } } }
+```
+
+Any OpenAI-style config, any software that speaks MCP — Thunder gives it a human body.
 
 Tools: `thunder_open`, `thunder_read`, `thunder_click`, `thunder_type`,
 `thunder_scroll`, `thunder_look`, `thunder_ghost`, `thunder_captcha`,
