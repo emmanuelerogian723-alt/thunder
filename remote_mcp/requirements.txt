@@ -1,0 +1,3 @@
+thunder-agent>=0.3.0
+fastmcp>=2.0.0
+httpx

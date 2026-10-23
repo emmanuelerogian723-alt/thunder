@@ -21,8 +21,11 @@ session), round-robin across the pool when a proxy fails, with backoff.
 from __future__ import annotations
 
 import os
+import random
 import time
 from pathlib import Path
+
+from curl_cffi.requests import AsyncSession
 from typing import Dict, List, Optional
 
 
@@ -96,6 +99,58 @@ class ProxyManager:
         for k, v in list(self._sticky.items()):
             if v["server"] == proxy["server"]:
                 del self._sticky[k]          # next pick() rotates
+
+    # ── Thunder's own pool: validated free egress, zero accounts ──
+    @classmethod
+    async def free_pool(cls, limit: int = 12, want: int = 5,
+                        test_url: str = "https://example.com",
+                        timeout: int = 8) -> "ProxyManager":
+        """Fetch public proxy lists, validate each through a browser-true
+        Ghost request, keep only the ones that actually egress.
+        No account, no signup — Thunder's own starter pool. For
+        hard targets (Amazon etc.) plug a residential proxy via
+        THUNDER_PROXY; free pools are shared and low-reputation."""
+        import httpx
+        import asyncio
+        raw: List[str] = []
+        sources = [
+            "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&protocol=http&timeout=8000&country=all&ssl=all&anonymity=all",
+            "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
+        ]
+        try:
+            async with httpx.AsyncClient(timeout=15) as c:
+                for src in sources:
+                    try:
+                        r = await c.get(src)
+                        raw.extend(f"http://{l.strip()}"
+                                   for l in r.text.split()
+                                   if l.count(".") >= 2 and ":" in l)
+                    except Exception:
+                        continue
+                    if len(raw) >= limit * 3:
+                        break
+            random.shuffle(raw)
+            raw = raw[:limit * 2]
+        except Exception:
+            pass
+        if not raw:
+            return cls([])
+
+        async def _works(url: str) -> bool:
+            try:
+                s = AsyncSession(impersonate="chrome", timeout=timeout,
+                                  proxies={"http": url, "https": url})
+                ok = False
+                r = await s.get(test_url)
+                ok = r.status_code == 200
+                await s.close()
+                return ok
+            except Exception:
+                return False
+
+        checks = await asyncio.gather(*[_works(u) for u in raw])
+        good = [dict(server=u) for u, ok in zip(raw, checks) if ok]
+        return cls(good[:want])
 
     # ── health check ────────────────────────────────────────────
     async def check(self, proxy: Optional[Dict[str, str]] = None,

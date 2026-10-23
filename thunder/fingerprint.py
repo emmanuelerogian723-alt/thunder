@@ -194,6 +194,59 @@ class Skin:
       }
     } catch (e) {}
   }
+  // ── FINGERPRINT v2 — deeper human signals ────────────────────────
+  // WebRTC: real Chrome hides LAN IPs behind mDNS (.local) hostnames;
+  // datacenter-driven scrapers leak raw IPs here. Match the human shape.
+  try {
+    if (window.RTCPeerConnection) {
+      const origCreate = RTCPeerConnection.prototype.createDataChannel;
+      RTCPeerConnection.prototype.createDataChannel = function(...a) {
+        const ch = origCreate.apply(this, a);
+        const origGetStats = this.getStats.bind(this);
+        this.getStats = async function(sel) {
+          const stats = await origGetStats(sel);
+          // surface a scrubbed candidate list (mDNS like real Chrome)
+          if (stats && stats.forEach) {
+            const seen = new Set();
+            stats.forEach((r) => {
+              if (r.type === 'localcandidate' || r.type === 'local-candidate') {
+                if (r.address && !r.address.includes('.local')) {
+                  r.address = 'xxxx-' + Math.abs(String(SKIN.seed % 99999)) + '-xxxx.local';
+                }
+              }
+            });
+          }
+          return stats;
+        };
+        return ch;
+      };
+    }
+  } catch (e) {}
+  // AudioContext: real machines have hardware-specific DSP noise.
+  // Emulators produce bit-identical output — an old bot tell. Inject a
+  // stable, per-skin whisper of noise (deterministic: same skin = same
+  // audio fingerprint, different skin = different machine).
+  try {
+    const origGetChannelData = AudioBuffer.prototype.getChannelData;
+    AudioBuffer.prototype.getChannelData = function(...a) {
+      const d = origGetChannelData.apply(this, a);
+      if (d && d.length && !d.__thunder) {
+        const noise = ((SKIN.seed % 1000) / 1000 - 0.5) * 1e-7;
+        const patched = new Float32Array(d.length);
+        for (let i = 0; i < d.length; i++) patched[i] = d[i] + noise * Math.sin(i);
+        Object.defineProperty(patched, '__thunder', {value: 1});
+        return patched;
+      }
+      return d;
+    };
+  } catch (e) {}
+  // mimeTypes: real Chrome reports the PDF pair; headless reports none.
+  try {
+    if (navigator.mimeTypes instanceof MimeTypeArray &&
+        navigator.mimeTypes.length === 0) {
+      Object.defineProperty(navigator.mimeTypes, 'length', {get: () => 2, configurable: true});
+    }
+  } catch (e) {}
   // Headless chrome lacks a Notification object with permission
   try { if (!window.Notification) window.Notification = {permission: 'default', requestPermission: () => Promise.resolve('granted')}; } catch(e){}
 })();
