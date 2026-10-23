@@ -74,7 +74,8 @@ thunder ghost https://nowsecure.nl    # TLS-level fetch that passes the gate
 | **Body** | Stealth browser: real Google Chrome, persistent profiles | headless shells, disposable identities |
 | **Skin** | One consistent identity: UA, platform, GPU, screen, timezone, locale | fingerprint mismatches, `SwiftShader` WebGL |
 | **Hand** | Bézier mouse with *hand tremor*, human keystroke cadence, typos it fixes | straight-line paths, machine-perfect timing |
-| **Ghost** | Pure HTTP with Chrome's exact TLS/JA3 fingerprint | Python-scrape handshake = instant 403 |
+| **Ghost** | Pure HTTP with Chrome's exact TLS/JA3 fingerprint + full header orchestration + human-style retries | Python-scrape handshake = instant 403 |
+| **Pool** | Thunder's own proxy pool: auto-fetched, Ghost-validated egress, sticky per profile | shared/flagged datacenter IPs |
 | **Warmup** | Organic light browsing before your target | cold first-hit sessions |
 
 Verified live: `bot.sannysoft.com` under Thunder — **WebDriver missing (passed) · WebDriver Advanced passed · Chrome present (passed) · PluginArray passed** — *4 passed, 0 failed* with headed real Chrome. Ghost pulls a **200** from a Cloudflare gate that 403s plain Python, same minute.
@@ -82,6 +83,16 @@ Verified live: `bot.sannysoft.com` under Thunder — **WebDriver missing (passed
 ---
 
 ## 🔌 MCP: give ANY software a human body
+
+**Zero-install, zero-account — paste this URL into Claude** (Settings → Connectors → Add custom connector, or claude.ai/mcp):
+
+```
+https://thunder-mcp.onrender.com/mcp
+```
+
+That's it. No signup, no keys. Thunder-hosted, always on. You get `thunder_search`, `thunder_read`, `thunder_ghost`, `thunder_feel`, `thunder_solve`, `thunder_open` — search, clean extraction and bot-gate-safe fetches through Chrome's exact TLS handshake, from inside Claude.
+
+Want the *full* human body (stealth Chrome, mouse tremor, human typing) under MCP? Run it locally — same 10-tool MCP server:
 
 Thunder ships an MCP server (10 tools). Paste one config and Claude, Cursor, Cline, Windsurf — anything that speaks MCP — browses as a human:
 
