@@ -15,7 +15,7 @@ TLS handshake indistinguishable from Chrome's.
 [![PyPI](https://img.shields.io/pypi/v/thunder-agent?color=%23ffd447&label=pypi%3A%20thunder-agent)](https://pypi.org/project/thunder-agent/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3ddc84)](https://pypi.org/project/thunder-agent/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-4c8dff)](LICENSE)
-[![Tests](https://img.shields.io/badge/stealth%20suite-passing-3ddc84)](tests/)
+[![Tests](https://img.shields.io/badge/stealth%20suite-passing-3ddc84) ![Fingerprint](https://img.shields.io/badge/wear%20your%20own%20fingerprint-v0.5-ffd447)](tests/)
 
 **[Install](#-install-in-30-seconds)** · **[Watch the proof](https://emmanuelerogian723-alt.github.io/thunder/)** · **[MCP for any software](#-mcp-give-any-software-a-human-body)**
 
@@ -128,6 +128,54 @@ result = await soft_solve(body.page)     # human-hand click, no keys needed
 ```
 
 Non-interactive challenges often pass on a warmed-up session. For Turnstile/reCAPTCHA Enterprise, wire your own CapSolver or 2Captcha key — Thunder senses the challenge type and routes it.
+
+**v0.5 — ChallengeResolver, Thunder's own bypass system** (no external deps):
+
+```python
+from thunder.captcha import ChallengeResolver
+verdict = await ChallengeResolver().resolve(body.page, body=body)
+# {'solved': True, 'kind': 'turnstile', 'how': 'human-timed checkbox click'}
+```
+
+Detects the challenge type — Turnstile, reCAPTCHA v2, hCaptcha, Amazon's text captcha, Cloudflare interstitials — and runs the built-in counter: hand-timed checkbox clicks, patience for interstitials, local OCR for Amazon (retrying like a person squinting). No paid keys, no subscriptions.
+
+---
+
+## 🫆 Wear YOUR OWN fingerprint
+
+The headline feature of v0.5. Open https://browserleaks.com in your normal browser, copy your values, and Thunder wears your machine's ghost — same UA, GPU strings, screen, cores, RAM, timezone, languages:
+
+```python
+from thunder.fingerprint import Skin
+from thunder.body import Body
+
+me = Skin.imitate({
+    "user agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...",
+    "gpu renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, ...)",
+    "timezone": "Europe/London", "screen": "2560x1440",
+})
+body = Body(skin=me)            # your machine's ghost
+```
+
+Or from the terminal:
+
+```bash
+thunder identity --out my.json        # export the live fingerprint
+thunder identity --imitate my.json    # wear it and verify live
+```
+
+Partial data is fine — anything missing stays Thunder-consistent. An imitated skin is *mutually consistent*: your Mac UA will never claim a Windows GPU.
+
+---
+
+## 📖 Reads like a human too
+
+```python
+await body.read_like_human(seconds=15)   # burst-scroll, reading pauses,
+                                         # idle drift, re-reads
+```
+
+Behavioral ML scores dwell patterns. Thunder gives pages a genuine reading signature — pauses at paragraph speed, hands that drift while "reading", occasional scroll-backs.
 
 ---
 

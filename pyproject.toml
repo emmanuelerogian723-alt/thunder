@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "thunder-agent"
-version = "0.4.0"
+version = "0.5.0"
 description = "Thunder — the human engine for AI agents: stealth browser body, human hands, TLS ghost, CAPTCHA bridge, and a stewmind thought layer."
 readme = "README.md"
 requires-python = ">=3.10"

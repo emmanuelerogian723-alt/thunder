@@ -5,6 +5,8 @@
     thunder think "find the pricing page"  # stewmind's next action
     thunder serve                          # run the MCP server (stdio)
     thunder demo                           # full showcase run
+    thunder identity --out my.json         # export your fingerprint
+    thunder identity --imitate my.json     # wear YOUR fingerprint
 """
 from __future__ import annotations
 
@@ -33,6 +35,11 @@ def main(argv=None):
     t.add_argument("goal")
     t.add_argument("--endpoint", default=None)
     t.add_argument("--local", action="store_true")
+
+    i = sub.add_parser("identity", help="export or imitate a real fingerprint")
+    i.add_argument("--out", default=None, help="save the exported fingerprint JSON")
+    i.add_argument("--imitate", default=None,
+                   help="wear this fingerprint JSON (yours, from browserleaks etc.)")
 
     sub.add_parser("serve", help="run the MCP server over stdio")
     sub.add_parser("demo", help="run the full Thunder showcase")
@@ -89,6 +96,33 @@ def main(argv=None):
             await body.rest()
         asyncio.run(run())
         return 0
+
+    if a.cmd == "identity":
+        from thunder.body import Body
+        from thunder.fingerprint import Skin
+
+        async def run():
+            if a.imitate:
+                skin = Skin.imitate(json.load(open(a.imitate)))
+                body = Body(skin=skin)
+                await body.wake("https://example.com")
+                fp = await body.export_fingerprint()
+                print(json.dumps(fp, indent=2))
+                ok = fp.get("webdriver") in (None, False)
+                print("\nimitation live:", "OK" if ok else "FAIL")
+                await body.rest()
+                return 0 if ok else 1
+            body = Body()
+            await body.wake("https://example.com")
+            fp = await body.export_fingerprint()
+            print(json.dumps(fp, indent=2))
+            if a.out:
+                json.dump(fp, open(a.out, "w"), indent=2)
+                print(f"\nsaved -> {a.out}")
+                print("reuse anywhere: Body(skin=Skin.imitate(json.load(open('%s'))))" % a.out)
+            await body.rest()
+        rc = asyncio.run(run())
+        return rc if isinstance(rc, int) else 0
 
     if a.cmd == "demo":
         from thunder.demo import run as run_demo

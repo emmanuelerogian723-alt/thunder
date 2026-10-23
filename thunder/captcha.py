@@ -224,3 +224,156 @@ async def ocr_solve(page, input_selector: str = "input",
     from .human import Hand
     await Hand(page).type(input_selector, answer)
     return {"solved": True, "answer": answer}
+
+
+# ════════════════════════════════════════════════════════════════
+# ChallengeResolver — Thunder's own bypass system, no external deps
+# ════════════════════════════════════════════════════════════════
+class ChallengeResolver:
+    """Detects the challenge type on a page and runs Thunder's own
+    bypass for it — hand-timed clicks, human waits, local OCR.
+    No paid solver required. Falls back to SolverBridge (your key)
+    only for interactive challenges from bad-IP contexts."""
+
+    DETECTORS = {
+        "turnstile": [
+            'iframe[src*="challenges.cloudflare.com"]',
+            'iframe[src*="turnstile"]',
+        ],
+        "recaptcha_v2": ['iframe[src*="google.com/recaptcha"]',
+                         '.g-recaptcha'],
+        "hcaptcha": ['iframe[src*="hcaptcha.com"]', '.h-captcha'],
+        "amazon_text": ['form[action*="validatecaptcha"]',
+                       'img[src*="captcha"] + input'],
+        "cloudflare_interstitial": ['div#challenge-running',
+                                    '#cf-challenge-running'],
+    }
+
+    async def detect(self, page) -> str:
+        for kind, sels in self.DETECTORS.items():
+            for sel in sels:
+                try:
+                    if await page.locator(sel).count() > 0:
+                        return kind
+                except Exception:
+                    continue
+        return "none"
+
+    async def resolve(self, page, body=None, budget: float = 25.0):
+        """Returns {'solved': bool, 'kind': str, 'how': str}."""
+        import asyncio as _a
+        import random as _r
+        kind = await self.detect(page)
+        if kind == "none":
+            return {"solved": True, "kind": "none", "how": "no challenge"}
+
+        handler = getattr(self, "_do_" + kind, None)
+        if handler is None:
+            return {"solved": False, "kind": kind,
+                    "how": "no built-in handler; use SolverBridge keys"}
+        try:
+            return await handler(page, body, budget)
+        except Exception as e:
+            return {"solved": False, "kind": kind, "how": f"error: {e}"}
+
+    async def _do_cloudflare_interstitial(self, page, body, budget):
+        import asyncio as _a
+        # good fingerprint + patience usually clears it
+        for _ in range(6):
+            await _a.sleep(3.0)
+            if await self.detect(page) == "none":
+                return {"solved": True, "kind": "cloudflare_interstitial",
+                        "how": "passed with patience + clean handshake"}
+        return {"solved": False, "kind": "cloudflare_interstitial",
+                "how": "IP reputation too low — rotate proxy or retry later"}
+
+    async def _do_turnstile(self, page, body, budget):
+        import asyncio as _a
+        import random as _r
+        frames = page.frames
+        for fr in frames:
+            if "challenges.cloudflare.com" in (fr.url or ""):
+                try:
+                    box = await fr.locator("input[type=checkbox], .cf-turnstile").first.bounding_box()
+                    if box and body:
+                        await body.hand.move_to((_r.uniform(box["x"]+8, box["x"]+14),
+                                                 _r.uniform(box["y"]+8, box["y"]+14)))
+                        await _a.sleep(_r.uniform(0.3, 0.9))
+                        await body.page.mouse.down()
+                        await _a.sleep(_r.uniform(0.05, 0.11))
+                        await body.page.mouse.up()
+                        for _ in range(8):
+                            await _a.sleep(1.5)
+                            if await self.detect(page) == "none":
+                                return {"solved": True, "kind": "turnstile",
+                                        "how": "human-timed checkbox click"}
+                except Exception:
+                    continue
+        return {"solved": False, "kind": "turnstile",
+                "how": "checkbox not reached — IP/heuristics blocked it"}
+
+    async def _do_recaptcha_v2(self, page, body, budget):
+        return await self._do_turnstile_like(page, body, budget,
+                                             "google.com/recaptcha",
+                                             "recaptcha_v2")
+
+    async def _do_hcaptcha(self, page, body, budget):
+        return await self._do_turnstile_like(page, body, budget,
+                                             "hcaptcha.com", "hcaptcha")
+
+    async def _do_turnstile_like(self, page, body, budget, needle, kind):
+        # non-interactive variant: click the checkbox; interactive image
+        # grids need a solver key or a residential IP with good history
+        for fr in page.frames:
+            if needle in (fr.url or ""):
+                try:
+                    await fr.locator("input[type=checkbox]").first.click(timeout=2000)
+                    import asyncio as _a
+                    for _ in range(6):
+                        await _a.sleep(2.0)
+                        if await self.detect(page) == "none":
+                            return {"solved": True, "kind": kind,
+                                    "how": "checkbox pass (non-interactive)"}
+                except Exception:
+                    pass
+        return {"solved": False, "kind": kind,
+                "how": "interactive image grid — needs SolverBridge key "
+                        "or a clean residential IP"}
+
+    async def _do_amazon_text(self, page, body, budget):
+        """Amazon's image captcha: distorted characters. Thunder OCRs
+        them locally (pytesseract, optional) and types the answer with
+        human cadence — plus a retry loop like a person squinting."""
+        try:
+            import pytesseract
+        except ImportError:
+            return {"solved": False, "kind": "amazon_text",
+                    "how": "pip install pytesseract (and the tesseract "
+                           "binary) for local OCR"}
+        import asyncio as _a
+        import random as _r
+        img_sel = 'img[src*="captcha"]'
+        for attempt in range(3):
+            try:
+                img = page.locator(img_sel).first
+                png = await img.screenshot()
+                import io
+                from PIL import Image
+                txt = pytesseract.image_to_string(
+                    Image.open(io.BytesIO(png))).strip().replace(" ", "")
+                txt = "".join(ch for ch in txt if ch.isalnum())
+                if len(txt) >= 4:
+                    inp = page.locator('input[name*="capt"], input[type="text"]').last
+                    await inp.fill(txt)
+                    await _a.sleep(_r.uniform(0.3, 0.8))
+                    sub = page.locator('button[type="submit"], input[type="submit"]').first
+                    await sub.click()
+                    await _a.sleep(2.5)
+                    if await self.detect(page) == "none":
+                        return {"solved": True, "kind": "amazon_text",
+                                "how": f"local OCR pass (attempt {attempt+1})"}
+            except Exception:
+                pass
+            await _a.sleep(_r.uniform(1.0, 2.5))
+        return {"solved": False, "kind": "amazon_text",
+                "how": "OCR retries exhausted — rotate IP and retry"}

@@ -52,6 +52,12 @@ class Body:
         self.record = record_video
         self.locale = locale
         self.timezone = timezone
+        if skin is not None:
+            # an imitated/worn skin wins: its timezone and language ARE
+            # the identity being imitated
+            self.timezone = getattr(skin, "timezone", timezone) or timezone
+            if getattr(skin, "languages", None):
+                self.locale = skin.languages[0].replace("-R", "-").split(",")[0]
         self.user_data_dir = THUNDER_HOME / "profiles" / profile
         self.user_data_dir.mkdir(parents=True, exist_ok=True)
         skin_path = self.user_data_dir / "skin.json"
@@ -237,6 +243,52 @@ class Body:
         await self.hand.idle(seconds)
 
     # ── persistence ───────────────────────────────────────────────
+    async def export_fingerprint(self) -> Dict[str, Any]:
+        """Read back exactly what the live browser looks like right now:
+        UA, platform, languages, timezone, screen, GPU strings, cores,
+        RAM, plugins. Use to verify an imitated Skin, or to export your
+        own Thunder identity and reuse it anywhere."""
+        data = await self.page.evaluate("""(() => {
+          const gl = document.createElement('canvas').getContext('webgl2')
+            || document.createElement('canvas').getContext('webgl');
+          const dbg = gl ? gl.getExtension('WEBGL_debug_renderer_info') : null;
+          return {
+            'user agent': navigator.userAgent,
+            'platform': navigator.platform,
+            'languages': (navigator.languages || [navigator.language]).join(', '),
+            'timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+            'screen': screen.width + 'x' + screen.height,
+            'gpu vendor': dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : null,
+            'gpu renderer': dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : null,
+            'hardware concurrency': navigator.hardwareConcurrency,
+            'device memory': navigator.deviceMemory,
+            'plugins': navigator.plugins.length,
+            'webdriver': navigator.webdriver,
+          };
+        })()""")
+        return data
+
+    async def read_like_human(self, seconds: float = 12.0):
+        """Read the page the way a person does: scroll in bursts,
+        pause on paragraphs (reading speed), sometimes drift back up.
+        Behavioral ML scores dwell-time patterns; this gives the page
+        a genuine reading signature."""
+        import random as _r
+        end = asyncio.get_event_loop().time() + seconds
+        while asyncio.get_event_loop().time() < end:
+            # reading pause: ~200-350 words/minute
+            await asyncio.sleep(_r.uniform(0.8, 2.2))
+            chunk = _r.randint(180, 520)
+            await self.page.mouse.wheel(0, chunk)
+            # idle drift: hands never hold perfectly still
+            if _r.random() < 0.5:
+                await self.hand.move_to(_r.randint(200, 900),
+                                        _r.randint(150, 600))
+            if _r.random() < 0.18:   # re-read: scroll back up a bit
+                await asyncio.sleep(_r.uniform(0.3, 0.9))
+                await self.page.mouse.wheel(0, -_r.randint(80, 200))
+        await asyncio.sleep(_r.uniform(0.4, 1.2))
+
     async def save_state(self):
         st = self.user_data_dir / "state.json"
         if self.page:

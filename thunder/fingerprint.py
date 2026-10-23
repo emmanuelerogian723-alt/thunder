@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 import os
 import random
+import re
+import random
 from dataclasses import dataclass, field, asdict
 from typing import Any, Dict
 
@@ -60,6 +62,89 @@ class Skin:
             if hasattr(base, k):
                 setattr(base, k, v)
         return base
+
+    # -- IMITATE: wear the user's real fingerprint --------------------
+    _ALIAS = {
+        "user agent": "user_agent", "useragent": "user_agent", "ua": "user_agent",
+        "navigator.userAgent": "user_agent",
+        "platform": "platform", "navigator.platform": "platform",
+        "languages": "languages", "navigator.languages": "languages",
+        "language": "languages", "accept-language": "languages",
+        "timezone": "timezone", "time zone": "timezone",
+        "timezone_id": "timezone", "timezoneid": "timezone",
+        "hardware concurrency": "hardware_concurrency",
+        "hardwareconcurrency": "hardware_concurrency",
+        "navigator.hardwareConcurrency": "hardware_concurrency",
+        "cores": "hardware_concurrency",
+        "device memory": "device_memory", "devicememory": "device_memory",
+        "navigator.deviceMemory": "device_memory",
+        "ram": "device_memory",
+        "screen": None, "resolution": None, "screen resolution": None,
+        "webgl vendor": "webgl_vendor", "webglvendor": "webgl_vendor",
+        "unmasked vendor webgl": "webgl_vendor",
+        "gpu vendor": "webgl_vendor",
+        "webgl renderer": "webgl_renderer", "webglrenderer": "webgl_renderer",
+        "unmasked renderer webgl": "webgl_renderer",
+        "gpu renderer": "webgl_renderer", "gpu": "webgl_renderer",
+        "video card": "webgl_renderer",
+        "dnt": "do_not_track", "do not track": "do_not_track",
+        "donottrack": "do_not_track",
+    }
+
+    @classmethod
+    def imitate(cls, data: dict) -> "Skin":
+        """Build a Skin that imitates a REAL fingerprint — the user's
+        own device, exported from browserleaks.com, fingerprint.com,
+        or any fingerprint test page. Thunder then wears it: same UA,
+        platform, GPU strings, screen, cores, RAM, timezone, languages.
+        Partial data is fine; anything missing stays Thunder-consistent.
+
+        >>> skin = Skin.imitate({
+        ...     "user agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...",
+        ...     "webgl renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2, ...)",
+        ...     "platform": "MacIntel", "timezone": "Africa/Lagos"})
+        >>> body = Body(skin=skin)   # your machine's ghost
+        """
+        norm = {}
+        for k, v in data.items():
+            key = str(k).strip().lower()
+            tgt = cls._ALIAS.get(key)
+            if tgt is None and key in ("screen", "resolution",
+                                       "screen resolution"):
+                w, _, h = str(v).partition("x")
+                try:
+                    norm["screen_w"], norm["screen_h"] = int(w), int(h)
+                except ValueError:
+                    pass
+                continue
+            if tgt:
+                norm[tgt] = v
+        # languages may arrive as a comma/space string
+        if isinstance(norm.get("languages"), str):
+            norm["languages"] = [s.strip() for s in
+                                 re.split("[,;]", norm["languages"]) if s.strip()]
+        # numeric fields
+        for k in ("hardware_concurrency", "device_memory",
+                  "screen_w", "screen_h"):
+            if k in norm and not isinstance(norm[k], int):
+                try: norm[k] = int(re.sub(r"\D", "", str(norm[k])) or 0)
+                except Exception: norm.pop(k, None)
+        if norm.get("hardware_concurrency", 8) > 64:
+            norm["hardware_concurrency"] = 8
+        if norm.get("device_memory", 8) > 64:
+            norm["device_memory"] = 8   # browsers cap at 8 anyway
+        # consistency: derive platform from UA if not given
+        ua = norm.get("user_agent", "")
+        if ua:
+            if "Macintosh" in ua: norm.setdefault("platform", "MacIntel")
+            elif "Windows" in ua: norm.setdefault("platform", "Win32")
+            elif "Android" in ua: norm.setdefault("platform", "Linux armv81")
+            elif "Linux" in ua: norm.setdefault("platform", "Linux x86_64")
+        sk = cls(seed=int(data.get("seed", random.randint(1, 10**9))))
+        for k, v in norm.items():
+            if hasattr(sk, k) and v:
+                setattr(sk, k, v)
+        return sk
 
     # -- injectable JavaScript: patches the browser's tells -----------
     def injection_script(self) -> str:
