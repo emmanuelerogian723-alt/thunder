@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thunder-agent"
+version = "0.1.0"
+description = "Thunder — the human engine for AI agents: stealth browser body, human hands, TLS ghost, CAPTCHA bridge, and a stewmind thought layer."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Emmanuel Ene Rejoice", email = "emmanuelerogian723@gmail.com" }]
+keywords = ["ai-agents", "browser-automation", "stealth", "mcp", "anti-detection", "human-like", "scraping", "stewmind"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "curl_cffi>=0.7",
+  "playwright>=1.40",
+]
+
+[project.optional-dependencies]
+mind = ["transformers>=4.44", "torch"]
+solver = []            # bring your own CAPSOLVER_API_KEY / TWOCAPTCHA_API_KEY
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+
+[project.urls]
+Homepage = "https://github.com/emmanuelerogian723-alt/thunder"
+"Powered by" = "https://huggingface.co/Erog0291/stewmind-1.7b"
+
+[project.scripts]
+thunder = "thunder.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["thunder*"]

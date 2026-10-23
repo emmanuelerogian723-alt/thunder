@@ -1,0 +1,14 @@
+name: thunder-ci
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install .[dev] curl_cffi browserforge
+      - run: python -m playwright install chromium --with-deps
+      - run: pytest tests -x -q
+        env:
+          THUNDER_CI: 1
