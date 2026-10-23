@@ -73,7 +73,8 @@
     <h1>THUNDER</h1>
     <p class="tag">The human engine for AI agents. A body, a skin, a human hand, a ghost, and a mind — so your agent works on the web like a person, not a bot.</p>
     <div class="cta">
-      <a class="btn primary" href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank">⭐ Star on GitHub</a>
+      <a class="btn primary" href="https://pypi.org/project/thunder-agent/" target="_blank">📦 Install from PyPI</a>
+      <a class="btn ghost" href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank">⭐ Star on GitHub</a>
       <a class="btn ghost" href="#proofs">See it work ↓</a>
     </div>
     <div class="install">pip install thunder-agent</div>
@@ -153,7 +154,7 @@ plan = mind.think(goal="log in and download the invoice",
     <p class="sub">Captured from a real <code class="inline">thunder.Body</code> session. These are actual artifacts from the test run, unedited.</p>
     <div class="bigvideo">
       <video src="assets/thunder_action.mp4" controls muted playsinline loop></video>
-      <p class="vidcap">🎥 <b>Thunder in action, recorded live:</b> a real Chrome browser driven by the human hand — bezier mouse drift, keystrokes at human cadence, a typo fixed with backspace, eased scrolling with reading pauses. No edits.</p>
+      <p class="vidcap">🎥 <b>Thunder in action, recorded live:</b> real Google Chrome walks the classic bot-detection gauntlet with *every test passed* — then signs up for an account like a person: bezier mouse, human keystroke cadence, natural pauses. No edits.</p>
     </div>
     <style>
       .bigvideo{margin:1.4rem 0 2rem;border-radius:16px;overflow:hidden;border:1px solid #1b2740;background:#000;box-shadow:0 24px 80px #000a}
@@ -163,8 +164,8 @@ plan = mind.think(goal="log in and download the invoice",
     </style>
     <div class="shots">
       <div class="shot"><img src="assets/proof_cloudflare.png" alt="ghost vs plain client"><div class="cap"><span class="ok-chip">✓ PASS 200</span> Thunder's <b>Ghost</b> opens a Cloudflare-gated site — the same request with a plain Python client gets <span class="fail-chip">403</span>. The handshake is the difference.</div></div>
-      <div class="shot"><img src="assets/proof_hand.png" alt="human hand typing"><div class="cap"><span class="ok-chip">✓</span> The hand typed this — with inter-key delays, a typo it fixed with backspace, and a search submit.</div></div>
-      <div class="shot"><img src="assets/proof_detection.png" alt="detection page"><div class="cap">On the classic automation-detection page: <code class="inline">navigator.webdriver</code> patched away — while the Ghost layer needs no browser at all.</div></div>
+      <div class="shot"><img src="assets/proof_detection_pass.png" alt="detection page all passed"><div class="cap"><span class="ok-chip">✓ 4 PASSED / 0 FAILED</span> The classic automation-detection page under Thunder's Skin: WebDriver erased at prototype level, real PluginArray preserved, consistent Chrome identity.</div></div>
+      <div class="shot"><img src="assets/proof_hand.png" alt="human hand typing"><div class="cap"><span class="ok-chip">✓</span> The hand typed this — inter-key delays, a typo fixed with backspace, and a human search submit.</div></div>
     </div></section>
 
 <footer>
