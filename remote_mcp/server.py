@@ -87,43 +87,8 @@ async def thunder_search(query: str, limit: int = 5) -> str:
     TLS handshake; POSTs to DuckDuckGo (its official html method —
     GET now returns a form-only shell) with lite/Bing fallbacks,
     so datacenter IPs don't get stranded."""
-    import asyncio
-    g = Ghost()
-    try:
-        results = []
-        # 1) DDG POST — official method for the html endpoint
-        for attempt in range(2):
-            try:
-                r = await g.post("https://html.duckduckgo.com/html/",
-                                 data={"q": query}, timeout=20)
-                if r is not None and r.status_code == 200 and \
-                        "result__a" in r.text:
-                    results = _parse_results(r.text, limit)
-                    break
-            except Exception:
-                pass
-            await asyncio.sleep(1.5 * (attempt + 1))
-        # 2) fallbacks: lite + bing via the browse() retry engine
-        if not results:
-            for ep in ("https://lite.duckduckgo.com/lite/?q=" + quote(query),
-                       "https://www.bing.com/search?q=" + quote(query)):
-                try:
-                    r = await g.browse(ep, retries=2, timeout=20)
-                except Exception:
-                    continue
-                if r is not None and getattr(r, "status_code", 0) == 200:
-                    results = _parse_results(r.text, limit)
-                    if results:
-                        break
-        if results:
-            return "\n\n".join(results)
-        return ("search failed: all engines blocked this egress IP. "
-                "Thunder's local run with a residential proxy "
-                "(THUNDER_PROXY) resolves this.")
-    except Exception as e:
-        return f"search failed: {e}"
-    finally:
-        await g.close()
+    from thunder.search import web_search
+    return await web_search(query, limit)
 
 
 @mcp.tool
@@ -172,30 +137,8 @@ async def thunder_ghost(url: str) -> str:
 async def thunder_feel(url: str) -> str:
     """Check a target's bot posture: what a site does to a browser-true
     request vs a plain one. Returns the verdict for both."""
-    import httpx
-    g = Ghost()
-    plain_status = None
-    try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            plain = await c.get(url)
-            plain_status = plain.status_code
-    except Exception:
-        plain_status = "blocked/failed"
-    try:
-        r = await g.browse(url, retries=2)
-        th_status = r.status_code if r is not None else "blocked/failed"
-        wall = "captcha" in (r.text[:3000].lower() if r is not None else "")
-    except Exception:
-        th_status, wall = "blocked/failed", False
-    finally:
-        await g.close()
-    verdict = ("site appears open" if not wall else
-               "site shows a CAPTCHA wall to this request's IP")
-    return (f"plain python request: {plain_status}\n"
-            f"thunder ghost request: {th_status}\n"
-            f"bot-wall: {'yes' if wall else 'no'} — {verdict}\n"
-            "note: hard targets (Amazon, Google) weigh IP reputation; "
-            "pair Thunder with a residential proxy for those.")
+    from thunder.search import feel
+    return await feel(url)
 
 
 @mcp.tool

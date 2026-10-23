@@ -92,9 +92,9 @@ https://thunder-mcp.onrender.com/mcp
 
 That's it. No signup, no keys. Thunder-hosted, always on. You get `thunder_search`, `thunder_read`, `thunder_ghost`, `thunder_feel`, `thunder_solve`, `thunder_open` — search, clean extraction and bot-gate-safe fetches through Chrome's exact TLS handshake, from inside Claude.
 
-Want the *full* human body (stealth Chrome, mouse tremor, human typing) under MCP? Run it locally — same 10-tool MCP server:
+Want the *full* human body (stealth Chrome, mouse tremor, human typing) under MCP? Run it locally — **15 tools, full parity with the hosted endpoint plus the browser-only ones:**
 
-Thunder ships an MCP server (10 tools). Paste one config and Claude, Cursor, Cline, Windsurf — anything that speaks MCP — browses as a human:
+Thunder ships an MCP server (15 tools). Paste one config and Claude, Cursor, Cline, Windsurf — anything that speaks MCP — browses as a human:
 
 ```json
 { "mcpServers": { "thunder": {
@@ -104,6 +104,8 @@ Thunder ships an MCP server (10 tools). Paste one config and Claude, Cursor, Cli
 ```json
 { "mcpServers": { "thunder": {
     "command": "uvx", "args": ["--from", "thunder-agent", "thunder-mcp"] } } }
+
+Local tools (full set): `thunder_open`, `thunder_read`, `thunder_click`, `thunder_type`, `thunder_scroll`, `thunder_look`, `thunder_ghost`, `thunder_search`, `thunder_feel`, `thunder_captcha`, `thunder_challenge`, `thunder_human_read`, `thunder_identity`, `thunder_think`, `thunder_rest`. Hosted endpoint tools: `thunder_search`, `thunder_read`, `thunder_ghost`, `thunder_feel`, `thunder_solve`, `thunder_open` (guide for running the full body locally). Same core, same code — online and offline behave identically.
 ```
 
 Tools: `thunder_open` · `thunder_read` · `thunder_search` · `thunder_click` · `thunder_type` · `thunder_scroll` · `thunder_ghost` · `thunder_solve` · `thunder_feel` · `thunder_close` — each one moves like a person, never like a script.

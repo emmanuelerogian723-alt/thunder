@@ -24,6 +24,11 @@ Tools exposed:
   thunder_captcha()          detect the challenge on this page
   thunder_think(goal)        stewmind decides the next action
   thunder_rest()             close the body (state persists)
+  thunder_search(query)      web search with browser-true TLS
+  thunder_feel(url)          target's bot posture: plain vs ghost
+  thunder_identity(file?)    export / wear a real fingerprint
+  thunder_human_read(sec)    read the page like a human
+  thunder_challenge()        keyless CAPTCHA counter (v0.5)
 
 Run Thunder only on systems and accounts you are authorized to use.
 """
@@ -82,6 +87,36 @@ TOOLS = [
                      "required": ["goal"]}},
     {"name": "thunder_rest",
      "description": "Close the body. Cookies/fingerprint persist for next time.",
+     "inputSchema": {"type": "object", "properties": {}}},
+    {"name": "thunder_search",
+     "description": "Search the web (DDG POST-first + lite/Bing fallbacks) "
+                    "with a browser-true TLS handshake.",
+     "inputSchema": {"type": "object",
+                     "properties": {"query": {"type": "string"},
+                                    "limit": {"type": "number",
+                                              "default": 5}},
+                     "required": ["query"]}},
+    {"name": "thunder_feel",
+     "description": "Probe a URL's bot posture: plain request vs thunder "
+                    "ghost (TLS-true) request.",
+     "inputSchema": {"type": "object",
+                     "properties": {"url": {"type": "string"}},
+                     "required": ["url"]}},
+    {"name": "thunder_identity",
+     "description": "Export the live fingerprint, or wear one from a "
+                    "fingerprint JSON file (Skin.imitate).",
+     "inputSchema": {"type": "object",
+                     "properties": {"imitate_file": {"type": "string"}}}},
+    {"name": "thunder_human_read",
+     "description": "Read the current page like a human: burst scroll, "
+                    "reading pauses, idle hand drift.",
+     "inputSchema": {"type": "object",
+                     "properties": {"seconds": {"type": "number",
+                                                "default": 12}}}},
+    {"name": "thunder_challenge",
+     "description": "Detect and counter any CAPTCHA/challenge on the "
+                    "current page (Turnstile/reCAPTCHA/hCaptcha/Amazon/"
+                    "CF interstitial) — keyless.",
      "inputSchema": {"type": "object", "properties": {}}},
 ]
 
@@ -145,6 +180,34 @@ class ThunderMCP:
             if self.body:
                 await self.body.rest()
             return {"ok": True}
+        if name == "thunder_search":
+            from thunder.search import web_search
+            return {"ok": True, "results": await web_search(
+                args["query"], int(args.get("limit", 5)))}
+        if name == "thunder_feel":
+            from thunder.search import feel
+            return {"ok": True, "report": await feel(args["url"])}
+        if name == "thunder_identity":
+            from thunder.fingerprint import Skin
+            await self._ensure_body()
+            if args.get("imitate_file"):
+                skin = Skin.imitate(json.load(open(args["imitate_file"])))
+                await self.body.rest()
+                self.body = Body(
+                    profile=os.getenv("THUNDER_PROFILE", "agent"), skin=skin)
+                await self.body.wake()
+            fp = await self.body.export_fingerprint()
+            return {"ok": True, "fingerprint": fp}
+        if name == "thunder_human_read":
+            await self._ensure_body()
+            await self.body.read_like_human(float(args.get("seconds", 12)))
+            return {"ok": True}
+        if name == "thunder_challenge":
+            from thunder.captcha import ChallengeResolver
+            await self._ensure_body()
+            verdict = await ChallengeResolver().resolve(self.body.page,
+                                                        body=self.body)
+            return verdict
         raise ValueError(f"unknown tool {name}")
 
 
