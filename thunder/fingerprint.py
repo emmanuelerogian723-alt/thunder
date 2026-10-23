@@ -74,17 +74,34 @@ class Skin:
     try { Object.defineProperty(obj, prop, {get: () => value, configurable: true}); }
     catch (e) {}
   };
-  def(navigator, 'webdriver', undefined);          // the classic tell
+  // the classic tell, erased at prototype level:
+  // Chrome defines navigator.webdriver as an ENUMERABLE property on
+  // Navigator.prototype, so for-in scans (Intoli/CreepJS style) find it
+  // even when its value is undefined. Redefine non-enumerable + hide.
+  try {
+    Object.defineProperty(Object.getPrototypeOf(navigator), 'webdriver', {
+      get: () => undefined, set: undefined, configurable: true, enumerable: false
+    });
+  } catch (e) {}
+  try { delete navigator.webdriver; } catch (e) {}
   def(navigator, 'platform', SKIN.platform);
   def(navigator, 'languages', SKIN.languages);
   def(navigator, 'hardwareConcurrency', SKIN.hardware_concurrency);
   def(navigator, 'deviceMemory', SKIN.device_memory);
-  def(navigator, 'plugins', [
-    {name:'Chrome PDF Plugin', filename:'internal-pdf-viewer'},
-    {name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjal'},
-    {name:'Chromium PDF Viewer', filename:'internal-pdf-viewer'},
-    {name:'Microsoft Edge PDF Plugin', filename:'internal-pdf-viewer'},
-    {name:'WebKit built-in PDF', filename:'internal-pdf-viewer'}]);
+  // plugins: KEEP the genuine PluginArray when the browser already has a
+  // human-plausible one (real Chrome does). Only fabricate if it is empty
+  // or not a real PluginArray (headless shells) — detectors check typeof.
+  try {
+    if (!navigator.plugins || !(navigator.plugins instanceof PluginArray) ||
+        navigator.plugins.length === 0) {
+      def(navigator, 'plugins', [
+        {name:'Chrome PDF Plugin', filename:'internal-pdf-viewer'},
+        {name:'Chrome PDF Viewer', filename:'mhjfbmdgcfjbbpaeojofohoefgiehjal'},
+        {name:'Chromium PDF Viewer', filename:'internal-pdf-viewer'},
+        {name:'Microsoft Edge PDF Plugin', filename:'internal-pdf-viewer'},
+        {name:'WebKit built-in PDF', filename:'internal-pdf-viewer'}]);
+    }
+  } catch (e) {}
   def(screen, 'width', SKIN.screen_w);
   def(screen, 'height', SKIN.screen_h);
   def(screen, 'availWidth', SKIN.screen_w);
