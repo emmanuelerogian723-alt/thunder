@@ -1,4 +1,4 @@
-# Thunder — the full app: accounts, live video, per-user MCP, recordings, brain
+# Thunder — the full app: accounts, live video, per-user MCP, recordings, brain, Mouth (voice)
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -7,15 +7,15 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && python -m playwright install --with-deps chromium \
-    && apt-get update && apt-get install -y --no-install-recommends espeak-ng \
-    && pip install --no-cache-dir piper-tts edge-tts soundfile \
-    && apt-get clean
-
 COPY . .
-RUN pip install --no-cache-dir --no-deps .
 
-EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "thunder.webapp.server:app", "--host", "0.0.0.0", "--port", "7860"]
+RUN pip install --no-cache-dir fastmcp fastapi "uvicorn[standard]" httpx \
+        playwright pillow jinja2 piper-tts edge-tts soundfile \
+    && python -m playwright install --with-deps chromium \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends espeak-ng \
+    && apt-get clean \
+    && pip install --no-cache-dir --no-deps .
+
+EXPOSE 10000
+CMD ["sh", "-c", "exec python -m uvicorn thunder.webapp.server:app --host 0.0.0.0 --port ${PORT:-10000}"]
