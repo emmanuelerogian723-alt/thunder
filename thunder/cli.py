@@ -5,6 +5,7 @@
     thunder think "find the pricing page"  # stewmind's next action
     thunder serve                          # run the MCP server (stdio)
     thunder demo                           # full showcase run
+    thunder app                            # launch the full web app
     thunder identity --out my.json         # export your fingerprint
     thunder identity --imitate my.json     # wear YOUR fingerprint
 """
@@ -49,6 +50,24 @@ def main(argv=None):
     if a.cmd == "serve":
         from thunder.mcp_server import main as serve
         serve()
+        return 0
+
+    if a.cmd == "app":
+        try:
+            import uvicorn  # noqa: F401
+        except ImportError:
+            print("The web app needs server deps. Install them first:\n"
+                  "    pip install thunder-agent[app]")
+            return 1
+        import threading, webbrowser
+        from thunder.webapp.server import app as webapp
+        url = f"http://127.0.0.1:{a.port}"
+        if not a.no_browser:
+            threading.Timer(1.2, lambda: webbrowser.open(url)).start()
+        print(f"\n⚡ Thunder app running at {url}\n"
+              "   Ctrl+C to stop.\n")
+        import uvicorn
+        uvicorn.run(webapp, host="127.0.0.1", port=a.port, log_level="warn")
         return 0
 
     if a.cmd == "browse":

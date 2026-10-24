@@ -38,6 +38,11 @@ import thunder
 from thunder.ghost import Ghost
 from thunder.search import web_search, feel
 
+try:                                   # packaged (thunder.webapp) or repo run
+    from .brain import Brain
+except ImportError:
+    from brain import Brain
+
 FB_KEY = os.environ.get("FIREBASE_API_KEY", "")
 FB_AUTH = "https://identitytoolkit.googleapis.com/v1/accounts:"
 FB_FIRE = ("https://firestore.googleapis.com/v1/projects/ominiassist-ai"
@@ -65,6 +70,70 @@ STATIC = Path(__file__).parent / "static"
 # mcp_token -> session (per-user live identity, idToken auto-refreshed)
 ACTIVE: dict = {}
 
+# LOCAL MODE: no FIREBASE_API_KEY -> one zero-setup user (thunder app).
+LOCAL_MODE = not FB_KEY
+LOCAL_TOKEN = os.getenv("THUNDER_LOCAL_TOKEN", "local-thunder")
+LOCAL_USER = {"uid": "local-user", "email": "local@thunder",
+              "idToken": "", "mcpToken": LOCAL_TOKEN}
+TASKS: list = []            # local-mode task history (memory)
+
+REC_DIR = Path(os.environ.get(
+    "THUNDER_HOME", str(Path.home() / ".thunder"))) / "recordings"
+REC_DIR.mkdir(parents=True, exist_ok=True)
+HF_REPO = os.getenv("THUNDER_REC_REPO", "Erog0291/thunder-recordings")
+
+
+async def save_recording(sid: str):
+    """Persist a finished session's frames + log so users can replay it.
+    Disk first (fast), then the private HF dataset (durable)."""
+    st = FRAMES.get(sid)
+    if not st or not st.get("replay"):
+        return
+    rec = {"sid": sid, "uid": st.get("uid") or "anon",
+           "meta": st.get("meta", {}),
+           "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+           "log": st["log"], "frames": st["replay"]}
+    try:
+        (REC_DIR / f"{sid}.json").write_text(json.dumps(rec))
+    except Exception:
+        pass
+    tok = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_KEY") or ""
+    if tok:
+        try:
+            nd = json.dumps({
+                "operation": "add", "path": f"{sid}.json",
+                "content": base64.b64encode(
+                    json.dumps(rec).encode()).decode()})
+            async with httpx.AsyncClient() as c:
+                await c.post(
+                    f"https://huggingface.co/api/datasets/{HF_REPO}"
+                    "/commit/main",
+                    headers={"Authorization": f"Bearer {tok}"},
+                    content=nd, timeout=60)
+        except Exception:
+            pass
+
+
+async def load_recording(sid: str) -> Optional[dict]:
+    p = REC_DIR / f"{sid}.json"
+    if p.exists():
+        try:
+            return json.loads(p.read_text())
+        except Exception:
+            return None
+    tok = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_API_KEY") or ""
+    if not tok:
+        return None
+    try:
+        async with httpx.AsyncClient() as c:
+            r = await c.get(
+                f"https://huggingface.co/api/datasets/{HF_REPO}"
+                f"/resolve/main/{sid}.json",
+                headers={"Authorization": f"Bearer {tok}"}, timeout=60)
+            return r.json() if r.status_code == 200 else None
+    except Exception:
+        return None
+
 # session_id -> live task state
 FRAMES: dict = {}          # sid -> {"jpeg": b, "log": [...], "done": bool}
 
@@ -86,8 +155,16 @@ async def fb_async(client: httpx.AsyncClient, action: str, payload: dict):
     return r.json()
 
 
+def local_task_write(fields: dict):
+    TASKS.insert(0, {**fields, "id": f"task-{len(TASKS)+1:04d}"})
+    del TASKS[50:]
+
+
 async def fs_write(client: httpx.AsyncClient, path: str, id_token: str,
                   fields: dict) -> bool:
+    if not id_token:                      # local mode: keep in memory
+        local_task_write(fields)
+        return True
     """Write a Firestore doc via REST with the user's idToken."""
     vals = {}
     for k, v in fields.items():
@@ -128,6 +205,8 @@ async def refresh_session(tok: str) -> Optional[dict]:
 
 
 async def session_from_token(mcp_token: Optional[str]) -> Optional[dict]:
+    if LOCAL_MODE:
+        return LOCAL_USER
     if not mcp_token:
         return None
     return await refresh_session(mcp_token)
@@ -141,6 +220,9 @@ def bearer(request: Request) -> Optional[str]:
 # ---------------------------------------------------------------- accounts
 @app.post("/api/signup")
 async def api_signup(req: Request):
+    if LOCAL_MODE:
+        return {"email": LOCAL_USER["email"], "local": True,
+                "idToken": "", "mcpToken": LOCAL_TOKEN}
     body = await req.json()
     email = (body.get("email") or "").strip().lower()
     password = body.get("password") or ""
@@ -169,6 +251,9 @@ async def api_signup(req: Request):
 
 @app.post("/api/login")
 async def api_login(req: Request):
+    if LOCAL_MODE:
+        return {"email": LOCAL_USER["email"], "local": True,
+                "idToken": "", "mcpToken": LOCAL_TOKEN}
     body = await req.json()
     email = (body.get("email") or "").strip().lower()
     password = body.get("password") or ""
@@ -225,8 +310,17 @@ async def _shot(page) -> bytes:
 
 
 async def push_frame(sid: str, jpeg: bytes, note: str = ""):
-    st = FRAMES.setdefault(sid, {"jpeg": None, "log": [], "done": False})
+    if len(FRAMES) > 50:            # keep memory bounded
+        for old in [k for k, v in FRAMES.items() if v.get("done")][:20]:
+            FRAMES.pop(old, None)
+    st = FRAMES.setdefault(sid, {"jpeg": None, "log": [], "done": False,
+                                 "replay": []})
     st["jpeg"] = jpeg
+    if jpeg:        # keep every frame for the session recording
+        st["replay"].append({
+            "t": round(time.time(), 1),
+            "jpeg": base64.b64encode(jpeg).decode(),
+            "note": note})
     if note:
         st["log"].append(
             f"{time.strftime('%H:%M:%S', time.gmtime())} — {note}")
@@ -274,8 +368,10 @@ async def run_browse(url: str, sid: str, mode: str = "browse") -> dict:
                     await body.rest()
                 except Exception:
                     pass
-        FRAMES.setdefault(sid, {"jpeg": None, "log": [], "done": False})
+        FRAMES.setdefault(sid, {"jpeg": None, "log": [], "done": False,
+                               "replay": []})
         FRAMES[sid]["done"] = True
+    await save_recording(sid)
     return result
 
 
@@ -300,7 +396,10 @@ async def api_task(req: Request):
         url = "https://" + url
     sid = secrets.token_hex(16)
     task_id = f"task-{uuid.uuid4().hex[:12]}"
-    FRAMES[sid] = {"jpeg": None, "log": [], "done": False}
+    FRAMES[sid] = {"jpeg": None, "log": [], "done": False, "replay": [],
+                   "uid": uid,
+                   "meta": {"action": action, "url": url,
+                            "query": body.get("query", "")}}
 
     async def execute():
         if action in ("browse", "read", "feel"):
@@ -356,7 +455,6 @@ async def live_stream(sid: str):
                 idle += 1
             if st["done"] and idle > 6:
                 yield (f"--{boundary}--\r\n").encode()
-                FRAMES.pop(sid, None)
                 return
             await asyncio.sleep(0.55)
 
@@ -367,16 +465,24 @@ async def live_stream(sid: str):
 @app.get("/log/{sid}")
 async def live_log(sid: str):
     st = FRAMES.get(sid)
-    return {"log": st["log"] if st else [], "done": st["done"] if st else True}
+    if st:
+        return {"log": st["log"], "done": st["done"]}
+    rec = await load_recording(sid)      # session finished & cached away
+    if rec:
+        return {"log": rec.get("log", []), "done": True}
+    return {"log": [], "done": True}
 
 
 @app.get("/api/history")
 async def api_history(request: Request, taskId: str = ""):
     """Task history for the session's user (filtered by uid)."""
-    tok = request.headers.get("x-thunder-token")
+    tok = request.headers.get("x-thunder-token") or (
+        LOCAL_TOKEN if LOCAL_MODE else None)
     s = await session_from_token(tok)
     if not s:
         raise HTTPException(401, "log in first")
+    if LOCAL_MODE:
+        return {"tasks": [t for t in TASKS if not taskId or t["id"] == taskId]}
     try:
         async with httpx.AsyncClient() as c:
             r = await c.get(
@@ -396,8 +502,218 @@ async def api_history(request: Request, taskId: str = ""):
         if taskId and not doc.get("name", "").endswith(taskId):
             continue
         tasks.append(f)
-    tasks.reverse()
+    tasks.sort(key=lambda t: t.get("at", ""), reverse=True)
     return {"tasks": tasks[:20]}
+
+
+# ------------------------------------------------------------ autopilot
+async def run_autopilot(goal: str, sid: str) -> dict:
+    """The Brain (StewMind -> Groq -> Pollinations) plans; Thunder acts."""
+    from thunder.body import Body
+    brain = Brain()
+    result = {"goal": goal, "status": "error", "steps": 0,
+              "text": "", "model": "none"}
+    async with BROWSE_LOCK:
+        body = None
+        try:
+            body = Body(profile=f"auto-{sid[:8]}", headless=True)
+            await body.wake()
+            await push_frame(sid, await _shot(body.page),
+                             f"brain booting — goal: {goal[:60]}")
+            history: list = []
+            started = False
+            for step in range(8):
+                if not started:
+                    state = {"url": "", "title": "(start)",
+                             "text": "no page open yet — goto or search first",
+                             "links": []}
+                else:
+                    state = await body.page.evaluate(
+                        """() => {const a=[...document.querySelectorAll('a')]
+                        .slice(0,25).map(x=>({t:(x.innerText||'').trim()
+                        .slice(0,60),h:(x.href||'').slice(0,140)}))
+                        .filter(x=>x.t);
+                        return {url:location.href.slice(0,180),
+                        title:document.title.slice(0,120),
+                        text:(document.body.innerText||'').slice(0,900),
+                        links:a}}""")
+                act = await brain.next_action(state, goal, history)
+                result["model"] = brain.model
+                if history[-3:-1] and all(
+                        h.split(" (")[0] == f"{act['action']}: {act['value']}"
+                        for h in history[-2:]) and act["action"] != "done":
+                    act = {"action": "done", "value": "",
+                           "reason": "avoiding a repeat loop — reading here"}
+                val = act["value"]
+                history.append(f"{act['action']}: {val} ({act['reason']})")
+                await push_frame(sid, await _shot(body.page),
+                                 f"brain: {act['action']} {val[:40]} — "
+                                 f"{act['reason'][:40]}")
+                result["steps"] += 1
+                if act["action"] == "done" or not val and \
+                        act["action"] not in ("scroll", "done"):
+                    break
+                if act["action"] == "goto":
+                    await body.go(val if val.startswith("http")
+                                  else "https://" + val)
+                    started = True
+                elif act["action"] == "search":
+                    hits = await web_search(val, 5)
+                    first = ""
+                    for ln in hits.splitlines():
+                        m2 = re.search(r"https?://\S+", ln)
+                        if m2 and not first and "duckduckgo" not in m2.group(0):
+                            first = m2.group(0).rstrip(")")
+                        await push_frame(sid, None,
+                                         "🔍 " + ln.strip()[:90])
+                    if first:
+                        await body.go(first)
+                        started = True
+                    else:
+                        await push_frame(sid, None,
+                                         "no results — brain re-plans")
+                elif act["action"] == "click":
+                    ok = await body.page.evaluate(
+                        """(txt) => {const a=[...document.querySelectorAll('a')]
+                        .find(x => (x.innerText||'').toLowerCase().includes(
+                        txt.toLowerCase()));
+                        if (a) {a.click(); return true;} return false;}""",
+                        val)
+                    if not ok:
+                        await push_frame(sid, None, "link not found — brain "
+                                     "will re-plan")
+                elif act["action"] == "scroll":
+                    if "top" in val.lower():
+                        await body.page.evaluate(
+                            "window.scrollTo(0,0)")
+                    else:
+                        await body.scroll(520)
+                elif act["action"] == "type":
+                    await body.page.evaluate(
+                        """(txt) => {const i=[...document.querySelectorAll(
+                        'input[type=text],input[type=search],input:not([type]),'
+                        + 'textarea')][0]; if (i) {i.focus(); return true;}
+                        return false;}""", val)
+                    await body.page.keyboard.type(val.split("->")[0].strip(),
+                                                  delay=70)
+                await asyncio.sleep(1.4)
+                await push_frame(sid, await _shot(body.page),
+                                 f"step {step + 1}/8 done")
+            if started:
+                info = await body.read()
+                if isinstance(info, dict):
+                    result["text"] = ((info.get("text") or
+                                       info.get("summary") or ""))[:1200]
+                    result["title"] = (info.get("title") or "")[:200]
+            result["status"] = "ok"
+            await push_frame(sid, await _shot(body.page),
+                             f"autopilot finished — {result['steps']} steps, "
+                             f"brain: {brain.model}")
+        except Exception as e:
+            result["status"] = f"error: {e}"[:300]
+            await push_frame(sid, None, f"autopilot error: {e}")
+        finally:
+            if body:
+                try:
+                    await body.rest()
+                except Exception:
+                    pass
+        FRAMES.setdefault(sid, {"jpeg": None, "log": [], "done": False,
+                               "replay": []})
+        FRAMES[sid]["done"] = True
+    await save_recording(sid)
+    return result
+
+
+@app.post("/api/autopilot")
+async def api_autopilot(req: Request):
+    """Give Thunder a goal — the Brain plans every step, live on video."""
+    body = await req.json()
+    goal = (body.get("goal") or "").strip()[:300]
+    if not goal:
+        raise HTTPException(400, "goal required")
+    id_token = bearer(req) or ""
+    s = await session_from_token(req.headers.get("x-thunder-token"))
+    if not s and id_token and not LOCAL_MODE:
+        key = next((k for k, v in ACTIVE.items()
+                    if v.get("idToken") == id_token), None)
+        if key:
+            s = await refresh_session(key)
+    if not s:
+        raise HTTPException(401, "log in first (or send X-Thunder-Token)")
+    uid, id_token = s["uid"], s["idToken"]
+    sid = secrets.token_hex(16)
+    task_id = f"task-{uuid.uuid4().hex[:12]}"
+    FRAMES[sid] = {"jpeg": None, "log": [], "done": False, "replay": [],
+                   "uid": uid, "meta": {"action": "autopilot", "goal": goal}}
+
+    async def execute():
+        res = await run_autopilot(goal, sid)
+        async with httpx.AsyncClient() as c:
+            await fs_write(c, f"thunder_tasks/{task_id}", id_token, {
+                "uid": uid, "url": "autopilot", "action": "autopilot",
+                "status": res["status"][:80],
+                "title": (res.get("title") or res.get("model", ""))[:120],
+                "result": (f"brain {res.get('model','')}: "
+                           + (res.get("text") or ""))[:150],
+                "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())})
+        return res
+
+    task = asyncio.create_task(execute())
+    for _ in range(40):
+        await asyncio.sleep(0.25)
+        if FRAMES[sid]["jpeg"]:
+            break
+    return {"sessionId": sid, "taskId": task_id}
+
+
+@app.get("/api/recordings")
+async def api_recordings(request: Request):
+    """Saved sessions this user can replay."""
+    tok = request.headers.get("x-thunder-token") or (
+        LOCAL_TOKEN if LOCAL_MODE else None)
+    s = await session_from_token(tok)
+    if not s:
+        raise HTTPException(401, "log in first")
+    out = []
+    for p in sorted(REC_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime,
+                    reverse=True)[:30]:
+        try:
+            rec = json.loads(p.read_text())
+            if rec.get("uid") == s["uid"]:
+                out.append({"sid": rec["sid"], "at": rec.get("at"),
+                            "meta": rec.get("meta", {}),
+                            "frames": len(rec.get("frames", [])),
+                            "thumb": (rec.get("frames") or [{}])[0]
+                            .get("jpeg", "")})
+        except Exception:
+            continue
+    return {"recordings": out}
+
+
+@app.get("/api/replay/{sid}")
+async def api_replay(sid: str, request: Request):
+    tok = request.headers.get("x-thunder-token") or (
+        LOCAL_TOKEN if LOCAL_MODE else None)
+    s = await session_from_token(tok)
+    if not s:
+        raise HTTPException(401, "log in first")
+    rec = await load_recording(sid)
+    if not rec:
+        raise HTTPException(404, "recording not found")
+    if rec.get("uid") not in (s["uid"], "anon", None):
+        raise HTTPException(403, "not your recording")
+    return rec
+
+
+@app.get("/api/status")
+async def api_status():
+    brain = Brain()
+    return {"mode": "local" if LOCAL_MODE else "cloud",
+            "version": thunder.__version__,
+            "brain": {"stewmind": brain.hf != "",
+                      "groq": brain.groq != "",
+                      "chain": "StewMind 1.7b -> Groq -> Pollinations"}}
 
 
 @app.post("/api/proof")

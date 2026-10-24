@@ -24,5 +24,5 @@ from thunder.ghost import Ghost
 from thunder.mind import StewMind
 from thunder.fingerprint import Skin, random_skin
 
-__version__ = "0.5.2"
+__version__ = "0.6.1"
 __all__ = ["Body", "Ghost", "StewMind", "Skin", "random_skin", "NodriverBody", "__version__"]

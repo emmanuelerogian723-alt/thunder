@@ -3,107 +3,151 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Thunder — the human engine, live</title>
+<title>Thunder — Human Engine</title>
 <link rel="stylesheet" href="/static/style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 </head>
 <body>
-<nav>
-  <div class="logo">⚡ <b>Thunder</b></div>
-  <div class="navlinks">
-    <a href="/">Home</a>
-    <a href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank">GitHub</a>
-    <a href="https://pypi.org/project/thunder-agent/" target="_blank">PyPI</a>
-    <button id="navBtn" class="btn ghost" onclick="toggleAuth()">Sign in</button>
-  </div>
-</nav>
 
-<section class="hero">
-  <div class="h1">Give any AI a <span class="glow">human body</span>.</div>
-  <p class="sub">Thunder browses like a real person — real browser, human hands,
-  your fingerprint. Sign up, connect Claude with your personal MCP, and
-  <b>watch your agent browse live on this page</b>.</p>
-  <div class="badges">
-    <span>⚡ open source (MIT)</span><span>🔒 accounts + per-user MCP</span>
-    <span>🎥 live browse video</span><span>🧪 free strength tests</span>
-  </div>
-</section>
+<div id="menubar">
+  <div class="logo">⚡ THUNDER <span>OS</span></div>
+  <div class="pill"><span class="dot"></span><b id="st-mode">…</b></div>
+  <div class="pill">brain <b id="st-brain">…</b></div>
+  <div class="pill">v<b id="st-ver">…</b></div>
+  <div id="clock">--:--:--</div>
+  <div id="userbadge">guest</div>
+</div>
 
-<section id="authBox" class="card auth hidden">
-  <h2 id="authTitle">Create your Thunder account</h2>
-  <form id="authForm" onsubmit="return doAuth(event)">
-    <input id="email" type="email" placeholder="email" required>
-    <input id="password" type="password" placeholder="password (8+ chars)" required minlength="8">
-    <div id="authMsg" class="msg"></div>
-    <button class="btn full" type="submit" id="authSubmit">Sign up</button>
-  </form>
-  <p class="tiny" id="authSwitch">Have an account? <a href="#" onclick="switchAuth('login')">Sign in</a></p>
-  <p class="tiny">Trusted. Your MCP token is yours alone — no one shares your session.</p>
-</section>
+<div id="shell">
+  <nav id="dock">
+    <button class="dockbtn on" data-w="mission"><span class="ic">🏠</span><span class="lb">Mission</span></button>
+    <button class="dockbtn" data-w="live"><span class="ic">📺</span><span class="lb">Live</span></button>
+    <button class="dockbtn" data-w="auto"><span class="ic">🧠</span><span class="lb">Autopilot</span></button>
+    <button class="dockbtn" data-w="recs"><span class="ic">🎬</span><span class="lb">Recordings</span></button>
+    <button class="dockbtn" data-w="hist"><span class="ic">📜</span><span class="lb">History</span></button>
+    <button class="dockbtn" data-w="conn"><span class="ic">🔌</span><span class="lb">Connect</span></button>
+  </nav>
 
-<section id="dash" class="hidden">
-  <div class="dashgrid">
-
-    <div class="card mcp">
-      <h2>🔌 Your personal MCP</h2>
-      <p class="tiny">Connect Claude (or any MCP client) to <b>your</b> Thunder.
-      Everything it does appears in your dashboard, live.</p>
-      <label class="tiny">Endpoint</label>
-      <input readonly id="mcpUrl" value="https://thunder-mcp.onrender.com/mcp" onclick="copyEl(this,'Endpoint copied')">
-      <label class="tiny">Your token (header: <code>X-Thunder-Token</code>)</label>
-      <input readonly id="mcpToken" onclick="copyEl(this,'Token copied')">
-      <label class="tiny">Claude → Settings → Connectors → Add custom connector:
-      paste the endpoint, add header <code>X-Thunder-Token</code> = your token.</label>
-      <label class="tiny">Claude Desktop config (click to copy)</label>
-      <textarea readonly id="claudeCfg" rows="7" onclick="copyEl(this,'Claude Desktop config copied')"></textarea>
-      <div class="spacer"></div>
-      <button class="btn ghost full" onclick="logout()">Sign out</button>
-    </div>
-
-    <div class="card livecard">
-      <h2>🎥 Live browse — test Thunder now</h2>
-      <div class="testrow">
-        <input id="testUrl" placeholder="https://en.wikipedia.org/wiki/Thunder" value="https://en.wikipedia.org/wiki/Thunder">
-        <button class="btn" onclick="runTask('browse')">⚡ Browse live</button>
-        <button class="btn ghost" onclick="runTask('search')">🔍 Search</button>
-        <button class="btn ghost" onclick="runTask('feel')">🛡️ Strength test</button>
-      </div>
-      <div class="plane-wrap" id="planeWrap">
-        <div class="plane" id="plane">
-          <div class="screen">
-            <img id="liveImg" src="" alt="">
-            <div class="idlemsg" id="idleMsg">⚡ Thunder idle — run a live test,
-            or ask Claude to use your MCP. Whatever it browses, you see here.</div>
+  <main id="desk">
+    <section class="win on" id="w-mission">
+      <div class="winhead"><i class="r"></i><i class="y"></i><i class="g"></i><span class="t">MISSION CONTROL</span></div>
+      <div class="winbody">
+        <div class="mission-grid">
+          <div>
+            <div class="hero-t">Watch a <em>real browser</em> think, move and read — live.</div>
+            <p class="hint" style="margin:8px 0 16px">Thunder is the human engine for AI agents. Every session is recorded so you can replay exactly how Thunder navigated and did the task.</p>
+            <label class="fl">Target page</label>
+            <div class="row">
+              <input id="m-url" placeholder="https://en.wikipedia.org/wiki/Thunder" spellcheck="false">
+              <button id="m-go">Browse live</button>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <button class="ghost" id="m-read">Read</button>
+              <button class="ghost" id="m-feel">Feel</button>
+              <button class="ghost" id="m-proof">Strength proof</button>
+            </div>
+            <label class="fl">Or give the Brain a mission</label>
+            <div class="row">
+              <input id="m-goal" placeholder="e.g. find today's top tech story and read it" spellcheck="false">
+              <button id="m-auto">Launch autopilot</button>
+            </div>
+            <div class="row" style="margin-top:18px; gap:12px">
+              <div class="stat"><b>6</b><span>MCP TOOLS</span></div>
+              <div class="stat"><b id="st-tasks">0</b><span>YOUR TASKS</span></div>
+              <div class="stat"><b id="st-recs">0</b><span>RECORDINGS</span></div>
+            </div>
           </div>
-          <div class="stand"></div>
+          <div class="authbox">
+            <label class="fl" style="margin-top:0">Account</label>
+            <div id="auth-in" style="display:none">
+              <input id="a-email" placeholder="email" spellcheck="false">
+              <input id="a-pass" placeholder="password" type="password" style="margin-top:8px">
+              <div class="row" style="margin-top:10px">
+                <button id="a-signup" class="ghost" style="flex:1">Create account</button>
+                <button id="a-login" style="flex:1">Sign in</button>
+              </div>
+            </div>
+            <div id="auth-ok" style="display:none">
+              <div class="hint">Signed in as <b id="who">—</b></div>
+              <div class="hint" style="margin-top:8px">Your private MCP token:</div>
+              <div class="cfg" style="margin-top:6px" id="tok-show">—</div>
+              <button class="ghost" id="a-copy" style="margin-top:10px">Copy token</button>
+              <button class="ghost" id="a-out" style="margin-top:10px">Sign out</button>
+            </div>
+            <p class="hint" style="margin-top:12px" id="local-note" hidden>Local mode — no account needed. Everything runs on this machine.</p>
+          </div>
         </div>
       </div>
-      <div class="log" id="liveLog"></div>
-      <div class="result hidden" id="resultBox"></div>
-    </div>
+    </section>
 
-    <div class="card history">
-      <h2>🗂️ Your task history</h2>
-      <div id="historyList" class="tiny">loading…</div>
-    </div>
+    <section class="win" id="w-live">
+      <div class="winhead"><i class="r"></i><i class="y"></i><i class="g"></i><span class="t">LIVE MONITOR — REAL CHROME</span></div>
+      <div class="winbody">
+        <div class="plane-wrap">
+          <div id="screenbox"><img id="screen" alt="Thunder live screen"></div>
+          <div id="console"><div class="step">// live step console — waiting for a task…</div></div>
+        </div>
+      </div>
+    </section>
 
-    <div class="card proof">
-      <h2>🧪 Strength proof (one click)</h2>
-      <p class="tiny">Two requests to the same URL: a plain Python request vs
-      Thunder's chrome-true ghost. Blocked vs allowed — that's the whole story.</p>
-      <button class="btn full" onclick="strengthTest()">Run the proof</button>
-      <div id="proofOut" class="tiny"></div>
-    </div>
+    <section class="win" id="w-auto">
+      <div class="winhead"><i class="r"></i><i class="y"></i><i class="g"></i><span class="t">AUTOPILOT — THE BRAIN DRIVES</span></div>
+      <div class="winbody">
+        <div class="row" style="max-width:820px">
+          <input id="auto-goal" placeholder="Goal: e.g. open wikipedia, find how lightning forms, read it" spellcheck="false">
+          <button id="auto-go">Engage brain</button>
+        </div>
+        <div class="plane-wrap" style="margin-top:14px">
+          <div id="screenbox"><img id="screen2" alt="Autopilot screen" style="width:100%;border-radius:8px;display:block;min-height:300px;transform:rotateX(3deg);background:#05060a;object-fit:contain"></div>
+          <div id="console2" style="width:300px;background:#05060c;border:1px solid var(--line);border-radius:12px;padding:12px;font:11.5px/1.7 'SF Mono',Menlo,monospace;color:#9aa3c0;height:380px;overflow:auto"><div class="step">// brain console — idle</div></div>
+        </div>
+      </div>
+    </section>
 
+    <section class="win" id="w-recs">
+      <div class="winhead"><i class="r"></i><i class="y"></i><i class="g"></i><span class="t">RECORDINGS — EVERY SESSION SAVED</span></div>
+      <div class="winbody"><div class="recs" id="rec-grid"></div><p class="hint" id="rec-empty" style="margin-top:10px">No recordings yet — run a live browse or autopilot mission and it gets saved here automatically.</p></div>
+    </section>
+
+    <section class="win" id="w-hist">
+      <div class="winhead"><i class="r"></i><i class="y"></i><i class="g"></i><span class="t">TASK HISTORY</span></div>
+      <div class="winbody">
+        <table><thead><tr><th>When</th><th>Action</th><th>Target</th><th>Status</th><th>Result</th></tr></thead>
+        <tbody id="hist-body"></tbody></table>
+      </div>
+    </section>
+
+    <section class="win" id="w-conn">
+      <div class="winhead"><i class="r"></i><i class="y"></i><i class="g"></i><span class="t">CONNECT — MCP + CLAUDE</span></div>
+      <div class="winbody" style="max-width:860px">
+        <h2>Plug Thunder into <span class="accent">Claude</span></h2>
+        <p class="hint">Your personal token links Claude's Thunder calls to this account — live video, recordings and history all flow here.</p>
+        <label class="fl">Claude web / API — remote MCP endpoint</label>
+        <div class="cfg" id="cfg-web">—<button class="cp ghost">Copy</button></div>
+        <label class="fl">Claude Desktop — local MCP (no account needed)</label>
+        <div class="cfg" id="cfg-desktop">—<button class="cp ghost">Copy</button></div>
+        <label class="fl">Python / any MCP client</label>
+        <div class="cfg" id="cfg-py">—<button class="cp ghost">Copy</button></div>
+        <p class="hint" style="margin-top:14px">Local install: <b>pip install thunder-agent</b> · self-host this app: <b>thunder app</b></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="player">
+  <div class="plyr">
+    <div class="winhead"><i class="r"></i><i class="y"></i><i class="g"></i><span class="t" id="pl-title">SESSION REPLAY</span><button class="ghost" id="pl-x" style="margin-left:auto;padding:3px 10px">✕</button></div>
+    <img id="pl-img" alt="replay frame">
+    <div id="pl-bar">
+      <button class="ghost" id="pl-play" style="padding:6px 14px">⏸</button>
+      <div id="pl-time"><div id="pl-fill"></div></div>
+      <span class="hint" id="pl-idx">0 / 0</span>
+      <button class="ghost" id="pl-dl" style="padding:6px 12px">⬇ JSON</button>
+    </div>
+    <div id="pl-log"></div>
   </div>
-</section>
+</div>
 
-<section class="footer">
-  <p>⚡ Thunder is open source (MIT) — <a href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank">github.com/emmanuelerogian723-alt/thunder</a> ·
-  <code>pip install thunder-agent</code></p>
-  <p class="tiny">Authorized use only — run Thunder on systems and accounts you're allowed to use.</p>
-</section>
-
+<div id="statusbar"><span id="ticker">Thunder idle — all systems nominal</span><span id="sb-right"></span></div>
 <script src="/static/app.js"></script>
 </body>
 </html>

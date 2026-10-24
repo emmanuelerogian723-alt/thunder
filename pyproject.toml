@@ -1,10 +1,16 @@
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"thunder.webapp" = ["static/*"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "thunder-agent"
-version = "0.5.2"
+version = "0.6.1"
 description = "Thunder — the human engine for AI agents: stealth browser body, human hands, TLS ghost, CAPTCHA bridge, and a stewmind thought layer."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -25,6 +31,7 @@ dependencies = [
 
 [project.optional-dependencies]
 mind = ["transformers>=4.44", "torch"]
+app = ["fastmcp>=2.0", "fastapi>=0.110", "uvicorn>=0.29", "httpx>=0.27"]
 solver = []            # bring your own CAPSOLVER_API_KEY / TWOCAPTCHA_API_KEY
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 
