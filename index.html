@@ -66,6 +66,14 @@
 </head>
 <body>
 <canvas id="storm"></canvas>
+<div id="topnav" style="position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:10px 18px;background:rgba(7,9,16,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)">
+  <b style="letter-spacing:2px">⚡ THUNDER</b>
+  <span style="display:flex;gap:10px;align-items:center">
+    <a href="#mcp" style="color:var(--dim);font-size:.85rem;text-decoration:none">MCP</a>
+    <a href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank" style="color:var(--dim);font-size:.85rem;text-decoration:none">GitHub</a>
+    <a href="https://thunder-app-s94i.onrender.com/" style="background:var(--bolt);color:#111;font-weight:700;padding:7px 14px;border-radius:9px;text-decoration:none;font-size:.85rem">Open App →</a>
+  </span>
+</div>
 <header>
   <div class="wrap hero-in">
     <img class="logo float" src="assets/thunder-logo.png" alt="Thunder logo">
@@ -73,7 +81,8 @@
     <h1>THUNDER</h1>
     <p class="tag">The human engine for AI agents. A body, a skin, a human hand, a ghost, and a mind — so your agent works on the web like a person, not a bot.</p>
     <div class="cta">
-      <a class="btn primary" href="https://pypi.org/project/thunder-agent/" target="_blank">📦 Install from PyPI</a>
+      <a class="btn primary" id="launch-app" href="https://thunder-app-s94i.onrender.com/" style="font-size:1.05rem">⚡ Launch Thunder App</a>
+      <a class="btn ghost" href="https://pypi.org/project/thunder-agent/" target="_blank">📦 Install from PyPI</a>
       <a class="btn ghost" href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank">⭐ Star on GitHub</a>
       <a class="btn ghost" href="#proofs">See it work ↓</a>
     </div>
@@ -119,6 +128,10 @@ plan = mind.think(goal="log in and download the invoice",
 </section>
 
 <section id="mcp">
+<div class="wrap"><div class="note" style="margin-bottom:1.4rem"><b>Hosted MCP link (Claude web / any client):</b><br>
+<code id="mcpurl" style="color:var(--bolt);word-break:break-all">https://thunder-app-s94i.onrender.com/mcp</code>
+<button onclick="navigator.clipboard.writeText('https://thunder-app-s94i.onrender.com/mcp')" style="margin-left:8px;cursor:pointer">Copy</button><br>
+Claude → Settings → Connectors → Add custom connector → paste this link. Sign in at the <a href="https://thunder-app-s94i.onrender.com/" style="color:var(--bolt)">app</a> to get your personal token and see live video + recordings.</div></div>
   <div class="wrap">
     <div class="kicker">COPY THIS → CLAUDE USES THUNDER</div>
     <h2>Give any agent a human body — in 30 seconds</h2>
