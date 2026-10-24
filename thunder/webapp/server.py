@@ -72,6 +72,10 @@ ACTIVE: dict = {}
 
 # LOCAL MODE: no FIREBASE_API_KEY -> one zero-setup user (thunder app).
 LOCAL_MODE = not FB_KEY
+# small hosted instances OOM if Piper+Kokoro+Chrome load together — the
+# zero-memory edge engine leads there; Piper stays primary for local app runs
+if not LOCAL_MODE and not os.environ.get("THUNDER_VOICE_PRIMARY"):
+    os.environ["THUNDER_VOICE_PRIMARY"] = "edge"
 LOCAL_TOKEN = os.getenv("THUNDER_LOCAL_TOKEN", "local-thunder")
 LOCAL_USER = {"uid": "local-user", "email": "local@thunder",
               "idToken": "", "mcpToken": LOCAL_TOKEN}
@@ -779,7 +783,8 @@ async def api_voices():
         except Exception:
             pass
     return {"engines": avail,
-                "primary": "piper (matured male, offline)",
+                "primary": ("edge (natural male, online)" if not LOCAL_MODE
+                              else "piper (matured male, offline)"),
                 "premium": "kokoro-82m"}
 
 

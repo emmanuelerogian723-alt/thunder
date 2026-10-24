@@ -91,7 +91,7 @@ pip install thunder-agent[app]
 thunder app
 ```
 
-Thunder *speaks*: the Mouth gives it a real voice — **Piper TTS** as the primary offline engine (matured male voice) and **Kokoro-82M** for premium-quality narration, with edge-tts as an online fallback. During any mission you can hear Thunder narrate each step as it works, and the 🎙️ button lets you *speak* your mission instead of typing it.
+Thunder *speaks*: the Mouth gives it a real voice — **Piper TTS** as the primary offline engine (matured male voice) and **Kokoro-82M** for premium-quality narration, with edge-tts (natural male Christopher voice) as the online fallback and the default on small hosted instances where local engines would exhaust memory. During any mission you can hear Thunder narrate each step as it works, and the 🎙️ button lets you *speak* your mission instead of typing it.
 
 The Thunder app is a desktop-grade web control room: mission control, a *live monitor* streaming real Chrome as it works, **Autopilot** (the Brain — StewMind 1.7b, falling back to Groq and Pollinations — plans each step and Thunder executes it on camera), and **Recordings**: every session's frames and step log are saved automatically, so you can replay exactly how Thunder navigated and did the task. With `FIREBASE_API_KEY` set it gains full accounts + per-user MCP tokens + cloud history; without it, it runs in local zero-setup mode.
 

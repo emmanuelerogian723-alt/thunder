@@ -192,8 +192,17 @@ def human_flow(text: str) -> str:
 
 
 # ------------------------------------------------------------------- API
-# Piper is the primary offline voice; Kokoro-82M is the premium one.
-ENGINE_ORDER = ("piper", "kokoro", "edge")
+# Local mode: Piper is the primary offline voice (matured male), Kokoro is
+# premium. Hosted instances are usually small (512MB) — Piper+Kokoro+Chrome
+# together OOM them, so there the zero-memory edge engine leads.
+if os.environ.get("THUNDER_VOICE_PRIMARY"):
+    _PRIMARY = os.environ["THUNDER_VOICE_PRIMARY"]
+elif os.environ.get("THUNDER_LOCAL_APP") or os.environ.get("THUNDER_HOSTED"):
+    _PRIMARY = "edge"
+else:
+    _PRIMARY = "piper"
+ENGINE_ORDER = (_PRIMARY,) + tuple(
+    e for e in ("piper", "kokoro", "edge") if e != _PRIMARY)
 
 
 def speak(text: str, engine: str | None = None) -> tuple[bytes, str]:
