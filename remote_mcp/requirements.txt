@@ -1,3 +1,7 @@
 thunder-agent>=0.5.2
 fastmcp>=2.0.0
 httpx
+fastapi
+uvicorn
+playwright
+pillow

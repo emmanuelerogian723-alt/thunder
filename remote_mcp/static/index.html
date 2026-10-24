@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thunder — the human engine, live</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+<nav>
+  <div class="logo">⚡ <b>Thunder</b></div>
+  <div class="navlinks">
+    <a href="/">Home</a>
+    <a href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank">GitHub</a>
+    <a href="https://pypi.org/project/thunder-agent/" target="_blank">PyPI</a>
+    <button id="navBtn" class="btn ghost" onclick="toggleAuth()">Sign in</button>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="h1">Give any AI a <span class="glow">human body</span>.</div>
+  <p class="sub">Thunder browses like a real person — real browser, human hands,
+  your fingerprint. Sign up, connect Claude with your personal MCP, and
+  <b>watch your agent browse live on this page</b>.</p>
+  <div class="badges">
+    <span>⚡ open source (MIT)</span><span>🔒 accounts + per-user MCP</span>
+    <span>🎥 live browse video</span><span>🧪 free strength tests</span>
+  </div>
+</section>
+
+<section id="authBox" class="card auth hidden">
+  <h2 id="authTitle">Create your Thunder account</h2>
+  <form id="authForm" onsubmit="return doAuth(event)">
+    <input id="email" type="email" placeholder="email" required>
+    <input id="password" type="password" placeholder="password (8+ chars)" required minlength="8">
+    <div id="authMsg" class="msg"></div>
+    <button class="btn full" type="submit" id="authSubmit">Sign up</button>
+  </form>
+  <p class="tiny" id="authSwitch">Have an account? <a href="#" onclick="switchAuth('login')">Sign in</a></p>
+  <p class="tiny">Trusted. Your MCP token is yours alone — no one shares your session.</p>
+</section>
+
+<section id="dash" class="hidden">
+  <div class="dashgrid">
+
+    <div class="card mcp">
+      <h2>🔌 Your personal MCP</h2>
+      <p class="tiny">Connect Claude (or any MCP client) to <b>your</b> Thunder.
+      Everything it does appears in your dashboard, live.</p>
+      <label class="tiny">Endpoint</label>
+      <input readonly id="mcpUrl" value="https://thunder-mcp.onrender.com/mcp" onclick="copyEl(this,'Endpoint copied')">
+      <label class="tiny">Your token (header: <code>X-Thunder-Token</code>)</label>
+      <input readonly id="mcpToken" onclick="copyEl(this,'Token copied')">
+      <label class="tiny">Claude → Settings → Connectors → Add custom connector:
+      paste the endpoint, add header <code>X-Thunder-Token</code> = your token.</label>
+      <label class="tiny">Claude Desktop config (click to copy)</label>
+      <textarea readonly id="claudeCfg" rows="7" onclick="copyEl(this,'Claude Desktop config copied')"></textarea>
+      <div class="spacer"></div>
+      <button class="btn ghost full" onclick="logout()">Sign out</button>
+    </div>
+
+    <div class="card livecard">
+      <h2>🎥 Live browse — test Thunder now</h2>
+      <div class="testrow">
+        <input id="testUrl" placeholder="https://en.wikipedia.org/wiki/Thunder" value="https://en.wikipedia.org/wiki/Thunder">
+        <button class="btn" onclick="runTask('browse')">⚡ Browse live</button>
+        <button class="btn ghost" onclick="runTask('search')">🔍 Search</button>
+        <button class="btn ghost" onclick="runTask('feel')">🛡️ Strength test</button>
+      </div>
+      <div class="plane-wrap" id="planeWrap">
+        <div class="plane" id="plane">
+          <div class="screen">
+            <img id="liveImg" src="" alt="">
+            <div class="idlemsg" id="idleMsg">⚡ Thunder idle — run a live test,
+            or ask Claude to use your MCP. Whatever it browses, you see here.</div>
+          </div>
+          <div class="stand"></div>
+        </div>
+      </div>
+      <div class="log" id="liveLog"></div>
+      <div class="result hidden" id="resultBox"></div>
+    </div>
+
+    <div class="card history">
+      <h2>🗂️ Your task history</h2>
+      <div id="historyList" class="tiny">loading…</div>
+    </div>
+
+    <div class="card proof">
+      <h2>🧪 Strength proof (one click)</h2>
+      <p class="tiny">Two requests to the same URL: a plain Python request vs
+      Thunder's chrome-true ghost. Blocked vs allowed — that's the whole story.</p>
+      <button class="btn full" onclick="strengthTest()">Run the proof</button>
+      <div id="proofOut" class="tiny"></div>
+    </div>
+
+  </div>
+</section>
+
+<section class="footer">
+  <p>⚡ Thunder is open source (MIT) — <a href="https://github.com/emmanuelerogian723-alt/thunder" target="_blank">github.com/emmanuelerogian723-alt/thunder</a> ·
+  <code>pip install thunder-agent</code></p>
+  <p class="tiny">Authorized use only — run Thunder on systems and accounts you're allowed to use.</p>
+</section>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
