@@ -379,6 +379,37 @@ async def run_browse(url: str, sid: str, mode: str = "browse") -> dict:
     return result
 
 
+SEARCH_URLS = {
+    "google": "https://www.google.com/search?q={q}&hl=en",
+    "bing": "https://www.bing.com/search?q={q}",
+    "duckduckgo": "https://duckduckgo.com/?q={q}",
+}
+
+
+def resolve_target(raw: str, engine: str = "auto") -> str:
+    """Turn whatever the user typed into a loadable URL. A real URL or
+    domain is opened as-is; anything else (e.g. 'Search Erogian on
+    Google') becomes a live search on the chosen engine."""
+    from urllib.parse import quote_plus
+    t = (raw or "").strip()
+    low = t.lower()
+    if re.match(r"^https?://\S+$", t, re.I):
+        return t
+    if re.match(r"^(localhost|[a-z0-9-]+(\.[a-z0-9-]+)+)(:\d+)?(/\S*)?$", low):
+        return "https://" + t
+    eng = (engine or "auto").lower()
+    # honour an engine named in the sentence ("... on Bing")
+    m = re.search(r"\bon\s+(google|bing|duckduckgo|ddg)\b\s*$", low)
+    if m:
+        eng = {"ddg": "duckduckgo"}.get(m.group(1), m.group(1))
+        t = re.sub(r"\s+on\s+\w+\s*$", "", t, flags=re.I)
+    t = re.sub(r"^(please\s+)?(search|google|find|look\s*up)(\s+for)?\s+", "",
+               t, flags=re.I).strip() or raw
+    if eng not in SEARCH_URLS:
+        eng = "google"
+    return SEARCH_URLS[eng].format(q=quote_plus(t))
+
+
 @app.post("/api/task")
 async def api_task(req: Request):
     """Run a live browse task. Requires Bearer idToken (dashboard) or a
@@ -396,8 +427,7 @@ async def api_task(req: Request):
     if not s:
         raise HTTPException(401, "log in first (or send X-Thunder-Token)")
     uid, id_token = s["uid"], s["idToken"]
-    if not url.startswith("http"):
-        url = "https://" + url
+    url = resolve_target(url, body.get("engine", "auto"))
     sid = secrets.token_hex(16)
     task_id = f"task-{uuid.uuid4().hex[:12]}"
     FRAMES[sid] = {"jpeg": None, "log": [], "done": False, "replay": [],
@@ -428,11 +458,11 @@ async def api_task(req: Request):
 
     task = asyncio.create_task(execute())
     # give the browser a moment to produce the first frame
-    for _ in range(40):
+    for _ in range(80):
         await asyncio.sleep(0.25)
-        if FRAMES[sid]["jpeg"]:
+        if FRAMES[sid]["jpeg"] or FRAMES[sid]["done"]:
             break
-    return {"sessionId": sid, "taskId": task_id}
+    return {"sessionId": sid, "taskId": task_id, "url": url}
 
 
 @app.get("/live/{sid}")

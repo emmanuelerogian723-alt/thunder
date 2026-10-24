@@ -95,7 +95,7 @@ Thunder *speaks*: the Mouth gives it a real voice — **Piper TTS** as the prima
 
 The Thunder app is a desktop-grade web control room: mission control, a *live monitor* streaming real Chrome as it works, **Autopilot** (the Brain — StewMind 1.7b, falling back to Groq and Pollinations — plans each step and Thunder executes it on camera), and **Recordings**: every session's frames and step log are saved automatically, so you can replay exactly how Thunder navigated and did the task. With `FIREBASE_API_KEY` set it gains full accounts + per-user MCP tokens + cloud history; without it, it runs in local zero-setup mode.
 
-**Hosted MCP endpoint** (connector URL for Claude): `https://thunder-mcp.onrender.com/mcp` — currently re-provisioning; run `thunder app` or the 15-tool local server meanwhile. You get `thunder_search`, `thunder_read`, `thunder_ghost`, `thunder_feel`, `thunder_solve`, `thunder_open` — search, clean extraction and bot-gate-safe fetches through Chrome's exact TLS handshake, from inside Claude.
+**Hosted MCP endpoint** (connector URL for Claude): `https://thunder-app-s94i.onrender.com/mcp` — hosted on the live Thunder App (https://thunder-app-s94i.onrender.com). The same server serves the desktop-style web app, accounts, live video and recordings. You get `thunder_search`, `thunder_read`, `thunder_ghost`, `thunder_feel`, `thunder_solve`, `thunder_open` — search, clean extraction and bot-gate-safe fetches through Chrome's exact TLS handshake, from inside Claude.
 
 Want the *full* human body (stealth Chrome, mouse tremor, human typing) under MCP? Run it locally — **15 tools, full parity with the hosted endpoint plus the browser-only ones:**
 

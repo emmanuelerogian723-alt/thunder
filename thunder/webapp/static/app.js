@@ -99,16 +99,25 @@ document.querySelectorAll(".dockbtn").forEach((b) =>
 let LOG_TIMER = null, LIVE_SID = null;
 async function run_task(url, action, goal) {
   if (!TOKEN) return toast("sign in first", true);
-  const payload = goal ? { goal } : { url, action, query: url };
+  const payload = goal ? { goal } : { url, action, query: url, engine: ($("#m-engine") && $("#m-engine").value) || "auto" };
   const ep = goal ? "/api/autopilot" : "/api/task";
   tick("launching " + (goal ? "autopilot mission" : action) + "…");
   const r = await fetch(ep, { method: "POST", headers: { ...headers(), ...(TOKEN && !goal ? { Authorization: "Bearer " + (LS.get("thunder_idtoken", "") || "") } : {}) }, body: JSON.stringify(payload) });
-  const d = await r.json();
-  if (!r.ok) { toast(d.detail || "task failed", true); return; }
+  let d = {};
+  try { d = await r.json(); } catch (e) {}
+  if (!r.ok) { toast(d.detail || "task failed", true); tick("task failed"); return; }
   dock("auto", "live");
-  attach_stream(d.sessionId, action === "search" ? null : url, goal);
+  attach_stream(d.sessionId, action === "search" ? null : (d.url || url), goal);
   poll_log(d.sessionId);
   save_task_id(d.taskId);
+  // watchdog: if no frame shows up, say so instead of hanging forever
+  setTimeout(async () => {
+    try {
+      const lg = await (await fetch("/log/" + d.sessionId)).json();
+      const bad = (lg.log || []).filter((x) => /error/i.test(x)).pop();
+      if (bad) toast("Browser problem: " + bad.replace(/^[\d:]+ — /, "").slice(0, 90), true);
+    } catch (e) {}
+  }, 20000);
 }
 async function run_auto() {
   const goal = $("#auto-goal").value.trim() || $("#m-goal").value.trim();
