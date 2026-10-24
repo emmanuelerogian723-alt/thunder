@@ -10,6 +10,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && python -m playwright install --with-deps chromium \
+    && apt-get update && apt-get install -y --no-install-recommends espeak-ng \
+    && pip install --no-cache-dir piper-tts edge-tts soundfile \
     && apt-get clean
 
 COPY . .

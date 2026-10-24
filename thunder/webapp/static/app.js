@@ -137,6 +137,70 @@ function attach_stream(sid, url, goal) {
   $("#console").innerHTML = "<div class='step'>// stream attached — " + (goal || url) + "</div>";
   tick("live session " + sid.slice(0, 8) + " running");
 }
+/* ---------------- Thunder's Mouth (voice) ---------------- */
+const VOICE = { on: LS.get("thunder_voice") !== "off", spoken: {}, q: [], busy: false, cur: null };
+
+function vbtn() { $("#voice-btn").textContent = VOICE.on ? "🔊" : "🔇"; }
+function voice_toggle() {
+  VOICE.on = !VOICE.on; LS.set("thunder_voice", VOICE.on ? "on" : "off");
+  vbtn(); toast(VOICE.on ? "Thunder voice on" : "Thunder voice off");
+  if (VOICE.on) say("Thunder voice online. Ready when you are.");
+}
+
+async function _speak_fetch(text) {
+  const r = await fetch("/api/tts", { method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }) });
+  if (!r.ok) { VOICE.on = false; vbtn(); return null; }
+  return await r.blob();
+}
+
+async function _drain() {
+  if (VOICE.busy) return;
+  VOICE.busy = true;
+  while (VOICE.q.length) {
+    const text = VOICE.q.shift();
+    try {
+      const blob = await _speak_fetch(text);
+      if (blob) { await new Promise((res) => {
+          const au = new Audio(URL.createObjectURL(blob));
+          VOICE.cur = au; au.onended = res; au.play().catch(res);
+          setTimeout(res, 22000); }); }
+    } catch (e) { /* keep flowing */ }
+  }
+  VOICE.busy = false;
+}
+
+function say(text) {
+  if (!VOICE.on) return;
+  VOICE.q.push(text); _drain();
+}
+function speak_new(logArr, key) {
+  if (!VOICE.on) return;
+  for (const l of logArr.slice(-4)) {
+    const id = key + "|" + l;
+    if (VOICE.spoken[id]) continue;
+    VOICE.spoken[id] = 1;
+    if (l.length > 3) say(l);
+  }
+}
+
+/* mic: speak your mission instead of typing */
+function mic_go() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return toast("mic needs Chrome/Edge", true);
+  const rec = new SR(); rec.lang = "en-US"; rec.interimResults = false;
+  $("#m-mic").textContent = "🔴";
+  rec.onresult = (e) => {
+    const t = e.results[0][0].transcript;
+    $("#m-goal").value = t; $("#m-goal").focus();
+    toast("mission heard — press Launch autopilot");
+  };
+  rec.onend = () => { $("#m-mic").textContent = "🎙️"; };
+  rec.onerror = () => { $("#m-mic").textContent = "🎙️"; toast("mic error", true); };
+  rec.start();
+}
+
 function log_html(con, L) {
   con.innerHTML = (L.log.length ? L.log : ["// waiting for first step…"])
     .map((l) => "<div class='step'>" + l.replace(/</g, "&lt;") + "</div>").join("");
@@ -148,7 +212,8 @@ async function poll_log(sid) {
     const r = await fetch("/log/" + sid);
     const L = await r.json();
     log_html($("#console"), L);
-    if (L.done) { clearInterval(LOG_TIMER); tick("task complete — recording saved"); load_counts(); }
+    speak_new(L.log, sid);
+    if (L.done) { clearInterval(LOG_TIMER); tick("task complete — recording saved"); load_counts(); say("Task complete. Recording saved."); }
   }, 1400);
 }
 async function poll_log2(sid) {
@@ -157,7 +222,8 @@ async function poll_log2(sid) {
     const r = await fetch("/log/" + sid);
     const L = await r.json();
     log_html($("#console2"), L);
-    if (L.done) { clearInterval(LOG_TIMER); tick("autopilot complete — recording saved"); load_counts(); }
+    speak_new(L.log, sid);
+    if (L.done) { clearInterval(LOG_TIMER); tick("autopilot complete — recording saved"); load_counts(); say("Autopilot complete. Recording saved."); }
   }, 1400);
 }
 async function save_task_id(id) { LS.set("thunder_last", id); }
@@ -286,6 +352,9 @@ $("#m-auto").addEventListener("click", () => {
 $("#auto-go").addEventListener("click", run_auto);
 $("#a-signup").addEventListener("click", sign_up);
 $("#a-login").addEventListener("click", log_in);
+$("#voice-btn").addEventListener("click", voice_toggle);
+$("#m-mic").addEventListener("click", mic_go);
+vbtn();
 $("#a-out").addEventListener("click", logout);
 $("#a-copy").addEventListener("click", () => { navigator.clipboard.writeText(TOKEN); toast("token copied"); });
 $("#m-proof").addEventListener("click", async () => {
