@@ -778,7 +778,9 @@ async def api_voices():
             avail.append(e)
         except Exception:
             pass
-    return {"engines": avail, "default": "kokoro premium male"}
+    return {"engines": avail,
+                "primary": "piper (matured male, offline)",
+                "premium": "kokoro-82m"}
 
 
 @app.post("/api/proof")

@@ -730,6 +730,59 @@ async def api_status():
                       "chain": "StewMind 1.7b -> Groq -> Pollinations"}}
 
 
+_TTS_CACHE: dict = {}
+
+
+@app.post("/api/tts")
+async def api_tts(request: Request):
+    """Thunder's Mouth: speak text with the matured-man voice.
+    Engines: kokoro (premium) -> piper (offline) -> edge (online)."""
+    body = await request.json()
+    text = str(body.get("text") or "").strip()[:280]
+    if not text:
+        raise HTTPException(400, "text required")
+    engine = body.get("engine") or None
+    from thunder.mouth import speak, human_flow, ENGINE_ORDER
+    text = human_flow(text)
+    key = (engine or "any") + "|" + text
+    if key in _TTS_CACHE:
+        data, eng = _TTS_CACHE[key]
+        return Response(data, media_type="audio/wav",
+                        headers={"X-Thunder-Voice": eng})
+    try:
+        data, eng = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: speak(text, engine))
+    except RuntimeError as e:
+        raise HTTPException(503, str(e))
+    if len(_TTS_CACHE) > 40:
+        _TTS_CACHE.clear()
+    _TTS_CACHE[key] = (data, eng)
+    mt = "audio/mpeg" if eng == "edge-mp3" else "audio/wav"
+    return Response(data, media_type=mt,
+                    headers={"X-Thunder-Voice": eng})
+
+
+@app.get("/api/voices")
+async def api_voices():
+    from thunder.mouth import ENGINE_ORDER
+    avail = []
+    import importlib
+    for e in ENGINE_ORDER:
+        try:
+            if e == "kokoro":
+                importlib.import_module("kokoro")
+            elif e == "piper":
+                importlib.import_module("piper")
+            elif e == "edge":
+                importlib.import_module("edge_tts")
+            avail.append(e)
+        except Exception:
+            pass
+    return {"engines": avail,
+                "primary": "piper (matured male, offline)",
+                "premium": "kokoro-82m"}
+
+
 @app.post("/api/proof")
 async def api_proof(request: Request):
     """Public strength proof: plain request vs thunder ghost."""
