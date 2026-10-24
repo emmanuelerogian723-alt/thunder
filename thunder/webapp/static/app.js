@@ -379,3 +379,12 @@ $("#m-proof").addEventListener("click", async () => {
 });
 
 boot();
+
+
+// landing ?demo= prefill
+(function () {
+  const d = new URLSearchParams(location.search).get("demo");
+  if (!d) return;
+  const el = document.getElementById("m-goal") || document.getElementById("auto-goal");
+  if (el) { el.value = d; }
+})();

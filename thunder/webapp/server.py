@@ -984,6 +984,12 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
 
 @app.get("/")
+async def landing():
+    """Marketing landing — now hosted on the app domain itself."""
+    return FileResponse(STATIC / "landing.html")
+
+
+@app.get("/app")
 async def index():
     return FileResponse(STATIC / "index.html")
 

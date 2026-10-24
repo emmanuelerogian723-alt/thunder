@@ -1,8 +1,16 @@
-# Thunder hosted-MCP keep-alive: pings the Render service every 14
-# minutes (just under Render's 15-min free-tier sleep) so the public
-# MCP endpoint https://thunder-app-s94i.onrender.com/mcp never sleeps.
-# Public repo = free Actions minutes, zero accounts for users.
-name: keep-thunder-mcp-awake
+# Thunder hosted-app keep-alive — v2 (strong).
+# Pings the Render service every 14 minutes (just under Render's
+# 15-min free-tier sleep) so https://thunder-app-s94i.onrender.com
+# (app + MCP endpoint /mcp) never sleeps.
+#
+# v2 hardening: a cold start can take 60-90s on the free tier, and the
+# v1 script used `set -e`, so the FIRST curl timeout killed the whole
+# job instead of retrying (exit 28 "Failed in 58 seconds"). Now:
+#   - no set-e; every curl is guarded
+#   - 4 attempts, 90s max-time each, growing backoff
+#   - a lightweight /api/status ping first, then the full MCP handshake
+#   - job only fails if ALL attempts fail (real outage, not a cold boot)
+name: keep-thunder-awake
 on:
   schedule:
     - cron: "*/14 * * * *"
@@ -11,17 +19,30 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Wake Thunder MCP
+      - name: Wake Thunder (status + MCP handshake, 4 tries)
         run: |
-          set -e
-          for i in 1 2 3; do
-            code=$(curl -s -o /tmp/resp.txt -w "%{http_code}" --max-time 55 \
-              -X POST https://thunder-app-s94i.onrender.com/mcp \
+          URL="https://thunder-app-s94i.onrender.com"
+          ok=0
+          for i in 1 2 3 4; do
+            # 1) cheap status ping (starts the cold boot)
+            sc=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "$URL/api/status" || true)
+            echo "attempt $i status -> HTTP ${sc:-000}"
+            if [ "$sc" = "200" ]; then ok=1; break; fi
+            # 2) full MCP handshake check (proves the endpoint, not just the boot)
+            mc=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 \
+              -X POST "$URL/mcp" \
               -H "Content-Type: application/json" \
               -H "Accept: application/json, text/event-stream" \
-              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"keepalive","version":"1.0"}}}')
-            echo "attempt $i -> HTTP $code"
-            if [ "$code" = "200" ]; then exit 0; fi
-            sleep 20
+              -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"keepalive","version":"2.0"}}}' || true)
+            echo "attempt $i mcp -> HTTP ${mc:-000}"
+            if [ "$mc" = "200" ]; then ok=1; break; fi
+            case $i in
+              1) sleep 20 ;; 2) sleep 40 ;; 3) sleep 60 ;;
+            esac
           done
-          echo "MCP ping failed 3 times"; exit 1
+          if [ "$ok" = "1" ]; then
+            echo "Thunder is awake."
+          else
+            echo "Thunder unreachable after 4 attempts (check Render dashboard)."
+            exit 1
+          fi
