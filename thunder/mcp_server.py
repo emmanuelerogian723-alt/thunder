@@ -24,7 +24,7 @@ Tools exposed:
   thunder_captcha()          detect the challenge on this page
   thunder_think(goal)        stewmind decides the next action
   thunder_rest()             close the body (state persists)
-  thunder_search(query)      web search with browser-true TLS
+  thunder_search(query, engine=auto|google|bing|duckduckgo)
   thunder_feel(url)          target's bot posture: plain vs ghost
   thunder_identity(file?)    export / wear a real fingerprint
   thunder_human_read(sec)    read the page like a human
@@ -89,12 +89,18 @@ TOOLS = [
      "description": "Close the body. Cookies/fingerprint persist for next time.",
      "inputSchema": {"type": "object", "properties": {}}},
     {"name": "thunder_search",
-     "description": "Search the web (DDG POST-first + lite/Bing fallbacks) "
-                    "with a browser-true TLS handshake.",
+     "description": "Search the web (Google, Bing or DuckDuckGo — auto "
+                    "falls back ddg->bing->google) with a browser-true "
+                    "TLS handshake. The result names the engine used.",
      "inputSchema": {"type": "object",
                      "properties": {"query": {"type": "string"},
                                     "limit": {"type": "number",
-                                              "default": 5}},
+                                              "default": 5},
+                                    "engine": {"type": "string",
+                                               "enum": ["auto", "google",
+                                                        "bing",
+                                                        "duckduckgo"],
+                                               "default": "auto"}},
                      "required": ["query"]}},
     {"name": "thunder_feel",
      "description": "Probe a URL's bot posture: plain request vs thunder "
@@ -183,7 +189,8 @@ class ThunderMCP:
         if name == "thunder_search":
             from thunder.search import web_search
             return {"ok": True, "results": await web_search(
-                args["query"], int(args.get("limit", 5)))}
+                args["query"], int(args.get("limit", 5)),
+                engine=str(args.get("engine", "auto")))}
         if name == "thunder_feel":
             from thunder.search import feel
             return {"ok": True, "report": await feel(args["url"])}

@@ -507,7 +507,8 @@ async def api_history(request: Request, taskId: str = ""):
 
 
 # ------------------------------------------------------------ autopilot
-async def run_autopilot(goal: str, sid: str) -> dict:
+async def run_autopilot(goal: str, sid: str,
+                        engine: str = "auto") -> dict:
     """The Brain (StewMind -> Groq -> Pollinations) plans; Thunder acts."""
     from thunder.body import Body
     brain = Brain()
@@ -558,7 +559,16 @@ async def run_autopilot(goal: str, sid: str) -> dict:
                                   else "https://" + val)
                     started = True
                 elif act["action"] == "search":
-                    hits = await web_search(val, 5)
+                    eng = engine if engine != "auto" else "auto"
+                    low = val.lower()
+                    for e in ("google", "bing", "duckduckgo"):
+                        if e in low:
+                            eng = e
+                            val = re.sub(
+                                r"\b(on\s+)?" + e + r"(\s+for|\s+search)?\b",
+                                "", val, flags=re.I).strip(" ,:.-")
+                            break
+                    hits = await web_search(val, 5, engine=eng)
                     first = ""
                     for ln in hits.splitlines():
                         m2 = re.search(r"https?://\S+", ln)
@@ -644,11 +654,15 @@ async def api_autopilot(req: Request):
     uid, id_token = s["uid"], s["idToken"]
     sid = secrets.token_hex(16)
     task_id = f"task-{uuid.uuid4().hex[:12]}"
+    engine = str(body.get("engine", "auto"))
+    if engine not in ("auto", "google", "bing", "duckduckgo"):
+        engine = "auto"
     FRAMES[sid] = {"jpeg": None, "log": [], "done": False, "replay": [],
-                   "uid": uid, "meta": {"action": "autopilot", "goal": goal}}
+                   "uid": uid, "meta": {"action": "autopilot", "goal": goal,
+                                        "engine": engine}}
 
     async def execute():
-        res = await run_autopilot(goal, sid)
+        res = await run_autopilot(goal, sid, engine)
         async with httpx.AsyncClient() as c:
             await fs_write(c, f"thunder_tasks/{task_id}", id_token, {
                 "uid": uid, "url": "autopilot", "action": "autopilot",
@@ -737,10 +751,12 @@ def _hdr(name: str) -> Optional[str]:
 
 
 @mcp.tool
-async def thunder_search(query: str, limit: int = 5) -> str:
-    """Search the web and return top results (browser-true TLS,
-    DDG POST-first with lite/Bing fallbacks)."""
-    return await web_search(query, limit)
+async def thunder_search(query: str, limit: int = 5,
+                         engine: str = "auto") -> str:
+    """Search the web and return top results (browser-true TLS).
+    engine: google | bing | duckduckgo | auto (ddg -> bing -> google
+    fallback). The first line names the engine that answered."""
+    return await web_search(query, limit, engine=engine)
 
 
 @mcp.tool

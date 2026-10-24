@@ -115,6 +115,7 @@ async function run_auto() {
   if (!goal) return toast("type a goal first", true);
   $("#auto-go").disabled = true;
   const payload = { goal };
+  payload.engine = (window.__engine && window.__engine()) || "auto";
   const r = await fetch("/api/autopilot", { method: "POST", headers: headers(), body: JSON.stringify(payload) });
   const d = await r.json();
   $("#auto-go").disabled = false;
@@ -267,6 +268,11 @@ thunder app                           # this app, self-hosted<button class="cp g
       toast("copied");
     }));
 }
+
+window.__engine = () => {
+  const s = document.querySelector("#m-engine");
+  return s ? s.value : "auto";
+};
 
 /* ---------------- events ---------------- */
 $("#m-go").addEventListener("click", () => run_task($("#m-url").value, "browse"));
